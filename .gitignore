@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Python (validator scripts may produce these)
+__pycache__/
+*.pyc
+
+# Local image outputs and scratch dirs
+output/
+tmp/
+scratch/
+*.png.bak
