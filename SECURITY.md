@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Open a GitHub issue or email indexfinger.app@gmail.com.
+Open a GitHub issue or email jun@indexfinger.org.
 
 ## Trust boundary
 
