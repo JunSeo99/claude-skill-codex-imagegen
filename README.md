@@ -2,6 +2,37 @@
 
 **Use OpenAI's [gpt-image-2](https://developers.openai.com/api/docs/models/gpt-image-2) — OpenAI's most capable image generation model — from inside [Claude Code](https://docs.claude.com/en/docs/claude-code).**
 
+🌐 **English** · [한국어](./README.ko.md) · [日本語](./README.ja.md) · [简体中文](./README.zh-CN.md)
+
+---
+
+### 📦 What
+
+A Claude Code skill that calls Codex CLI's `$imagegen` (gpt-image-2) on plain natural-language asks — *"generate a hero image"*, *"make a favicon"*, *"insert images that fit the site"* — and lands the result where you actually wanted it. No new slash command to learn. Claude calls it as part of whatever it's already doing.
+
+### 💡 Why
+
+Claude Code has no built-in image model. So most vibe-coded sites either ship without imagery or paste in stock that doesn't match. And generated images from a year ago screamed "AI" louder than the layout did, so people stopped trying. gpt-image-2 finally clears that bar — near-perfect text rendering, consistent lighting, real subject framing — which makes the *image layer* the cheapest way out of the "every AI site looks the same" trap. This skill makes that an in-session step, optionally guided by a `DESIGN.md` you keep at your project root.
+
+### 🚀 Quickstart
+
+```bash
+git clone https://github.com/JunSeo99/claude-skill-codex-imagegen \
+  ~/.claude/skills/codex-imagegen
+```
+
+Restart Claude Code, then ask in natural language:
+
+> *"Generate a 1600×900 hero image for this landing page, save to assets/hero.png."*
+
+Want consistency across an entire site? Drop a `DESIGN.md` at the project root, then:
+
+> *"Using DESIGN.md as the style reference, insert images that fit the site."*
+
+That's it. Full details below.
+
+---
+
 Claude Code does not ship with an image-generation model of its own. This skill closes that gap by teaching Claude Code to call gpt-image-2 through the [OpenAI Codex CLI](https://developers.openai.com/codex/cli)'s built-in `$imagegen` feature — so you can generate icons, banners, OG cards, illustrations, infographics, and photo edits without ever leaving your Claude Code session.
 
 The skill bundles a verified prompting playbook, a CLI reference, a security note, and a sample asset produced during validation.
@@ -25,6 +56,20 @@ Claude Code can already drive the Codex CLI, but `$imagegen` has rough edges tha
 - The naive non-interactive recipe requires `--dangerously-bypass-approvals-and-sandbox`, which hands the Codex sub-agent broad shell power — not a safe default
 
 This skill bakes those facts in, defaults to a **safer split workflow** (Codex generates only; the host does the file moves), and only opts into the bypass mode when explicitly requested.
+
+### What people use it for
+
+The tool is general — anything that needs a PNG/JPEG/WebP written to disk fits. In practice the workflows that come up most often:
+
+- **Hero images and background photography** for landing pages and marketing sites
+- **OG cards and social previews** generated per page
+- **Favicons and app icons** at the sizes you actually need
+- **Blog post illustrations** that match the post's tone instead of leaning on stock libraries
+- **Brand asset drafts** — logos, banners, badges — to iterate before committing to a designer
+- **Infographic placeholders and diagrams** with consistent visual language
+- **Photo edits** — change-X-keep-Y patterns on an existing image
+
+The workflow it was originally built around is **solo developers shipping sites without a designer** — where image quality and stylistic consistency are the main signal separating a vibe-coded site from a polished product. With a `DESIGN.md` at the project root (see [Usage](#usage)), Claude Code can generate a coherent image set across the whole site in one pass. But none of that requires you to be using it for a site; the skill is just as happy producing a single OG card or a batch of game-asset placeholders.
 
 > ⚠️ **Security note**: this skill defines two run modes. The default is safe; the opt-in "automated" mode uses `--dangerously-bypass-approvals-and-sandbox`. Read [`SECURITY.md`](SECURITY.md) before using the automated mode in a directory whose prompts or contents you do not control.
 
@@ -75,10 +120,14 @@ Restart Claude Code (or start a new session) so the skill is discovered.
 The skill activates on phrases such as:
 
 - "generate an image", "make an icon", "create a banner", "OG image"
+- "hero illustration", "make a favicon", "brand mark", "product shot"
 - "imagegen", "GPT Image 2", "codex image"
-- "이미지 만들어줘", "아이콘 생성", "배너 디자인"
 
-Or any request that produces a visual file saved to disk. Example session:
+*Multilingual triggers are supported via the skill's description field — localized prompts (Korean, Japanese, etc.) work without configuration.*
+
+### Basic usage — single asset
+
+Any request that produces a visual file saved to disk:
 
 > **You**: Make a 512×512 hero icon for my landing page — a single seedling growing from a flat horizon, line-art only, no text.
 >
@@ -95,6 +144,51 @@ If you want a single-step automated flow (Mode B) — e.g. for batching — you 
 Read [`SECURITY.md`](SECURITY.md) before opting in.
 
 For complex prompts (text in the image, photo edits, brand assets), Claude reads `references/prompting-guide.md` before generating to apply the structured prompt template and avoid known pitfalls.
+
+### For full-site image sets — pair with a `DESIGN.md`
+
+For projects that need a coherent visual language across multiple slots — hero, OG card, empty states, illustrations, favicons — drop a `DESIGN.md` at the project root with your palette, typography, and illustration style. Then ask Claude Code:
+
+> **You**: Using DESIGN.md as the style reference, insert images that fit the site.
+
+Claude reads `DESIGN.md`, scans the codebase for slots that need imagery, writes prompts that incorporate the palette and tone, calls this skill for each, and inserts the resulting paths into the right `<img>` tags. The hero image, the empty-state illustration, and the OG card all end up looking like they belong to the same product.
+
+A minimal `DESIGN.md` that works well:
+
+```markdown
+# Design
+
+## Concept
+Calm, considered, modern.
+
+## Palette
+- Surface (main):  #F4F1ED  — warm off-white
+- Surface (cards): #FFFFFF
+- Text:            #1A1A1A
+- Accent / CTA:    #C46A4E  — soft terracotta, used sparingly
+
+## Typography
+- Inter, system-ui sans-serif
+
+## Illustration style
+- Single subject, plenty of whitespace, no busy backgrounds
+- Soft natural light from upper left
+- No text inside images unless explicitly asked
+- Avoid stock-photo vibes and over-saturated colors
+```
+
+The qualitative `Illustration style` block carries most of the consistency work. Palette obviously matters too, but it's the descriptive instructions ("hand-folded paper feel", "no busy backgrounds", "warm tones") that keep each image from looking like it came from a different stock-image library.
+
+## Before / After — what the image layer changes
+
+To make the difference concrete, here's the same coffee-shop landing page built two ways. **Identical component code** in both — same Next.js 15, same Tailwind, same shadcn-style markup, same content, same navigation. The only thing that varies is the image layer.
+
+| Without images | With images |
+|:---:|:---:|
+| <img src="skill/assets/comparison-without.png" alt="Coffee landing page built with shadcn defaults, Lucide icons, and a purple-blue gradient — no real images, classic AI-default visual stack" width="420"> | <img src="skill/assets/comparison-with.png" alt="Same coffee landing page built with a DESIGN.md and product photography generated by this skill via gpt-image-2 — calm blue-gray palette, detailed coffee-bag product shots, editorial brewing photos" width="420"> |
+| 0 images. Lucide `Coffee` over a purple-blue gradient hero, `Bean` icons inside product cards, `Sparkles` over a gradient story, `Droplet`/`Flame` brewing icons. The textbook AI default stack. | 8 images generated by this skill with a `DESIGN.md` at the project root. Hero photography, five custom coffee-bag product shots (origin, roast, tasting notes, roast/best-by dates, brew recipe all on-label), a roastery story background, three brewing macro shots. |
+
+Both pages were produced in the same session. The right-hand one took roughly one extra command — *"Using DESIGN.md as the style reference, insert images that fit the site."* The demo project itself is intentionally kept outside this repo to keep the skill bundle small.
 
 ## What's in the skill
 
@@ -132,7 +226,7 @@ For batch work (10+ images), the API key mode is generally cheaper than the subs
 |---|---|
 | Output size doesn't match request | Always adds "at exactly WxH pixels"; host runs `sips -z H W` (macOS) or `convert -resize WxH!` (Linux) |
 | No transparent PNG | Documents the limitation; suggests gpt-image-1.5 via Image API or post-processing |
-| Non-Latin scripts or dense text occasionally garble | Uses EXACT TEXT marker + double quotes + "no duplicate text" |
+| Long multi-line text passages, brand names, and very small text in dense layouts still wobble (short labels and CJK render near-perfectly) | EXACT TEXT marker + double quotes for literal strings; letter-by-letter spelling for brand names; HTML/CSS overlay for paragraph-length text |
 | Latency up to 2 min on complex prompts | Bash timeout set to 300000 ms |
 | Imprecise element placement in complex layouts | Falls back to simplification or SVG-then-rasterize suggestion |
 
