@@ -49,13 +49,15 @@ The skill bundles a verified prompting playbook, a CLI reference, a security not
 
 Claude Code can already drive the Codex CLI, but `$imagegen` has rough edges that Claude misses on its own:
 
-- gpt-image-2 ignores the exact output size you request (e.g. 256×256 → 1254×1254)
-- Transparent PNGs are not supported by gpt-image-2 (only gpt-image-1.5 supports them, per the [OpenAI guide](https://developers.openai.com/api/docs/guides/image-generation))
+- **Your prompt gets rewritten before it reaches the model.** The Codex agent restructures every prompt into its internal labeled schema (verified via session logs), and *augments* vague prompts with its own taste. This skill writes prompts in that native schema directly, so nothing is lost or invented in translation.
+- **Size failures are deterministic, not random.** gpt-image-2 enforces a total-pixel floor of 655,360 (plus multiples-of-16 edges, ≤3:1 ratio) — that's why 256×256 comes back as 1254×1254. The skill generates at valid sizes and downscales on the host.
+- **Transparent PNGs are not natively supported by gpt-image-2** — but the skill ships a working default: generate on a flat chroma-key background, then convert key to alpha with the removal helper bundled inside Codex itself (no API key needed). True native alpha via `gpt-image-1.5 --background transparent` is available through the bundled CLI when `OPENAI_API_KEY` is set.
+- **`quality`, masks, and `input_fidelity` are not controllable through codex at all** — they exist only on the bundled CLI (`image_gen.py`), which the skill runs host-side when those levers matter.
 - The raw PNG lands at `~/.codex/generated_images/<session-uuid>/ig_*.png` — not where you asked
-- "Stunning, cinematic, 8K" keyword prompts produce visibly worse output than the five-part structured prompts the official OpenAI Cookbook recommends
+- "Stunning, cinematic, 8K" keyword prompts produce visibly worse output than structured briefs — the skill enforces a schema-based prompt with concrete art direction
 - The naive non-interactive recipe requires `--dangerously-bypass-approvals-and-sandbox`, which hands the Codex sub-agent broad shell power — not a safe default
 
-This skill bakes those facts in, defaults to a **safer split workflow** (Codex generates only; the host does the file moves), and only opts into the bypass mode when explicitly requested.
+This skill bakes those facts in, defaults to a **safer split workflow** (Codex generates only; the host does the file moves and post-processing), and only opts into the bypass mode when explicitly requested.
 
 ### What people use it for
 
@@ -66,8 +68,9 @@ The tool is general — anything that needs a PNG/JPEG/WebP written to disk fits
 - **Favicons and app icons** at the sizes you actually need
 - **Blog post illustrations** that match the post's tone instead of leaning on stock libraries
 - **Brand asset drafts** — logos, banners, badges — to iterate before committing to a designer
+- **Transparent cutouts** — stickers, product shots, character art with real alpha, via the chroma-key workflow (no API key) or gpt-image-1.5 native transparency
 - **Infographic placeholders and diagrams** with consistent visual language
-- **Photo edits** — change-X-keep-Y patterns on an existing image
+- **Photo edits** — change-X-keep-Y patterns on an existing image, including multi-image compositing with role-labeled references
 
 The workflow it was originally built around is **solo developers shipping sites without a designer** — where image quality and stylistic consistency are the main signal separating a vibe-coded site from a polished product. With a `DESIGN.md` at the project root (see [Usage](#usage)), Claude Code can generate a coherent image set across the whole site in one pass. But none of that requires you to be using it for a site; the skill is just as happy producing a single OG card or a batch of game-asset placeholders.
 
@@ -77,11 +80,11 @@ The workflow it was originally built around is **solo developers shipping sites 
 
 - macOS or Linux
 - [Claude Code](https://docs.claude.com/en/docs/claude-code) — this skill is a filesystem skill loaded from `~/.claude/skills/`, which is a Claude Code feature (Claude.ai web uses a different skill upload mechanism)
-- [Codex CLI](https://developers.openai.com/codex/cli) v0.130 or newer (`npm i -g @openai/codex`)
+- [Codex CLI](https://developers.openai.com/codex/cli) v0.130 or newer (`npm i -g @openai/codex`) — the transparent-cutout and host-run CLI workflows rely on helper scripts (`remove_chroma_key.py`, `image_gen.py`) that ship inside recent Codex versions (verified on 0.144.1)
 - A logged-in Codex session (`codex login`) — uses your ChatGPT/Codex subscription
-- Optional: `OPENAI_API_KEY` in your environment to bill batch jobs against the API instead
+- Optional: `OPENAI_API_KEY` in your environment (plus `pip install openai`) for the host-run bundled CLI — quality control, exact sizes, native transparency, batches, per-image billing
 
-Verified against `codex-cli 0.130.0` on macOS (Darwin 25.4.0). `sips` ships with macOS; on Linux the skill falls back to ImageMagick `convert`.
+Verified against `codex-cli 0.144.1` on macOS (Darwin 25.4.0); originally validated on 0.130.0. `sips` ships with macOS; on Linux the skill falls back to ImageMagick `convert`.
 
 ## Installation
 
@@ -131,7 +134,7 @@ Any request that produces a visual file saved to disk:
 
 > **You**: Make a 512×512 hero icon for my landing page — a single seedling growing from a flat horizon, line-art only, no text.
 >
-> **Claude**: *(invokes the skill, composes a five-part prompt, runs `codex exec` in **Mode A — safe**, parses the absolute path from stdout, `cp`s and `sips`-resizes it to `./assets/hero-icon.png`, then opens the file with Read to verify it matches your intent)*
+> **Claude**: *(invokes the skill, composes a prompt in Codex's native labeled schema, runs `codex exec` in **Mode A — safe**, parses the absolute path from stdout, `cp`s and `sips`-resizes it to `./assets/hero-icon.png`, then opens the file with Read to verify it matches your intent)*
 
 By default Claude runs Codex without `--dangerously-bypass-approvals-and-sandbox` and does the `cp`/`sips` step itself, in its own approved-tool context. The Codex sub-agent never gets carte-blanche shell access during normal use.
 
@@ -194,21 +197,26 @@ Both pages were produced in the same session. The right-hand one took roughly on
 
 ```
 skill/
-├── SKILL.md                  Workflow (Mode A & B), recipes, failure modes, triggers
+├── SKILL.md                  Prompt-flow model, Mode A & B, execution-control table,
+│                             transparency decision tree, recipes, failure modes
 ├── references/
-│   ├── prompting-guide.md    5-part structure, text rendering, edit pattern, anti-patterns
-│   └── cli-reference.md      codex exec flags, output paths, sips/convert post-processing, costs
+│   ├── prompting-guide.md    Native schema, first-50-words, text rendering, people,
+│   │                         edit pattern, multi-image/consistency, anti-patterns, Korean text
+│   └── cli-reference.md      Mode A/B flags, host-run bundled CLI (image_gen.py),
+│                             remove_chroma_key.py flags, size rules, costs, troubleshooting
 └── assets/
     └── hero.png              Sample 1600×900 hero image generated by gpt-image-2
 ```
 
-The five-part prompt structure (drawn from fal.ai and the OpenAI Cookbook) is:
+Prompts are written in the Codex agent's own labeled schema — because the agent restructures every prompt into that schema anyway, writing it directly means nothing is lost in translation:
 
-1. **Scene/context** — environment, time of day, mood
-2. **Subject** — main figure or object
-3. **Details** — style, medium, lighting, lens, color, texture
-4. **Use case** — drives output size and aspect
-5. **Constraints** — what to preserve, what to forbid
+```text
+Use case → Asset type → Primary request → [Input images] → Scene/backdrop → Subject
+→ Style/medium → Composition/framing → Lighting/mood → Color palette
+→ Materials/textures → [Text (verbatim)] → Constraints → Avoid
+```
+
+Every slot left empty is a slot the Codex agent fills with its own taste — the skill's core rule is to arrive fully specified.
 
 ## Cost
 
@@ -224,8 +232,9 @@ For batch work (10+ images), the API key mode is generally cheaper than the subs
 
 | Limitation | Workaround the skill applies |
 |---|---|
-| Output size doesn't match request | Always adds "at exactly WxH pixels"; host runs `sips -z H W` (macOS) or `convert -resize WxH!` (Linux) |
-| No transparent PNG | Documents the limitation; suggests gpt-image-1.5 via Image API or post-processing |
+| Output size must satisfy hard constraints (multiples-of-16 edges, ≥655,360 total pixels, ≤3:1 ratio) | Generates at a valid size; host resizes with `sips -z H W` (macOS) or `convert -resize WxH!` (Linux) |
+| No transparent PNG on gpt-image-2 | Default: chroma-key generation + host-run `remove_chroma_key.py` (bundled inside Codex, no API key). Complex edges (hair/fur/glass): `gpt-image-1.5 --background transparent` via the bundled CLI |
+| `quality`/masks/`input_fidelity` not settable through codex | Runs the bundled CLI (`image_gen.py`) host-side with `--quality high` etc. when those levers matter (`OPENAI_API_KEY`) |
 | Long multi-line text passages, brand names, and very small text in dense layouts still wobble (short labels and CJK render near-perfectly) | EXACT TEXT marker + double quotes for literal strings; letter-by-letter spelling for brand names; HTML/CSS overlay for paragraph-length text |
 | Latency up to 2 min on complex prompts | Bash timeout set to 300000 ms |
 | Imprecise element placement in complex layouts | Falls back to simplification or SVG-then-rasterize suggestion |
@@ -234,7 +243,7 @@ For batch work (10+ images), the API key mode is generally cheaper than the subs
 
 | Component | Tested |
 |---|---|
-| `codex-cli` | 0.130.0 |
+| `codex-cli` | 0.144.1 (originally verified on 0.130.0) |
 | OS | macOS (Darwin 25.4.0); Linux untested but expected to work with ImageMagick fallback |
 | Claude Code | App / CLI (filesystem skills) |
 

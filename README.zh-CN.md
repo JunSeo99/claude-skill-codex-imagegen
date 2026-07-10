@@ -39,7 +39,7 @@ git clone https://github.com/JunSeo99/claude-skill-codex-imagegen \
 
 ## 更多信息
 
-完整细节(安装方式、两种运行模式、gpt-image-2 的三个坑、五段式 prompt 结构、成本、安全、已知限制、对比 demo)请见 **[英文 README](./README.md)**。
+完整细节(安装方式、运行模式、Codex 代理的 prompt 重构机制与原生 schema、透明背景工作流(色键抠图 + gpt-image-1.5)、尺寸规则、成本、安全、已知限制、对比 demo)请见 **[英文 README](./README.md)**。
 
 ## 许可证
 

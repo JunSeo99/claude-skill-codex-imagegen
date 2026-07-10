@@ -59,5 +59,5 @@ When in doubt, stay on Mode A. The cost is one extra shell step performed by you
 ## Supply-chain notes
 
 - This repo ships a prebuilt `dist/codex-imagegen.skill` zip. It contains exactly the files in `skill/`. You can verify with `unzip -l dist/codex-imagegen.skill`.
-- The skill itself runs no installer, no postinstall hook, and no third-party scripts. It only tells Claude how to invoke `codex exec` and post-process the result with `sips`/`convert`.
+- The skill itself runs no installer, no postinstall hook, and no third-party downloads. It tells Claude how to invoke `codex exec` and how to post-process results locally with `sips`/`convert` and two helper scripts (`remove_chroma_key.py`, `image_gen.py`) that are read from your **existing Codex installation** (`$CODEX_HOME/skills/.system/imagegen/`) — the skill never fetches or modifies them.
 - If you'd rather not trust the prebuilt bundle, install via Option A or Option C in the README (symlink/copy directly from the `skill/` directory).

@@ -2,148 +2,176 @@
 
 ## Verified version
 
-This skill was validated against `codex-cli 0.130.0` (`codex --version`). Internals of the `$imagegen` skill — including the exact output path layout under `~/.codex/generated_images/` — are not part of the Codex CLI's public contract and may change in future versions. Always treat the version stamp here as the last known-good baseline, not a permanent guarantee.
+Validated against `codex-cli 0.144.1` on macOS (original verification runs: 0.130.0). Internals of the `$imagegen` skill — the output path layout under `~/.codex/generated_images/`, the bundled helper scripts, invocation semantics — are not part of the Codex CLI's public contract and may change. Treat the version stamp as the last known-good baseline, not a guarantee.
 
-## Two run modes
+## Three execution paths
 
-### Mode A — Safe default
+| | Mode A (default) | Mode B (opt-in) | Host-run bundled CLI |
+|---|---|---|---|
+| What runs | codex agent, generation only | codex agent, generation + its own post-processing | this host runs `image_gen.py` directly — no codex agent turn |
+| Auth | Codex login (subscription) | Codex login (subscription) | `OPENAI_API_KEY` (per-image API billing) |
+| Sandbox | active, approvals active | `--dangerously-bypass-approvals-and-sandbox` | n/a (host's own tool context) |
+| Prompt handling | agent rewrites into its labeled schema | same | `--no-augment` sends your prompt verbatim |
+| Per-call controls | none | none | `--size --quality --background --output-format --mask --n` etc. |
+
+Mode B is a trust hand-off — see `SECURITY.md`. The host-run CLI is both the safest and the most controllable path, but bills per image and needs the `openai` Python package.
+
+## Invocation (Mode A / Mode B)
 
 ```bash
-codex exec [FLAGS] '$imagegen <PROMPT>.
+# Mode A — safe default: codex generates, host post-processes
+codex exec --skip-git-repo-check --sandbox workspace-write \
+  '$imagegen <PROMPT>.
 Generate the image and then print ONLY the absolute path of the
 resulting PNG on the final line of your reply. Do NOT copy, move,
-or modify the file.'
+or modify the file.' < /dev/null
+
+# Mode B — opt-in automated: codex also does cp/resize itself
+codex exec --skip-git-repo-check --sandbox workspace-write \
+  --dangerously-bypass-approvals-and-sandbox \
+  '$imagegen <PROMPT>. Save to <PATH> at exactly WxH pixels and print the absolute path.' < /dev/null
 ```
 
-The sub-agent is instructed to run only the image-generation tool (no `cp`/`sips`). With `--sandbox workspace-write` plus active approvals, Codex's sandbox blocks writes outside the current workspace and gates elevated operations behind approval prompts — which, run non-interactively, fail rather than execute silently. Writes inside the workspace remain technically possible; we rely on the prompt instruction "do not copy or move" plus the sandbox + approvals to keep blast radius small. The host (Claude Code) parses the absolute path from stdout and performs the file move/resize itself.
+In Mode A the sub-agent runs only the image-generation tool; the sandbox blocks writes outside the workspace and approval-gated operations fail rather than execute silently when run non-interactively. The host performs the file move/resize itself.
 
-### Mode B — Automated (opt-in, requires trust)
-
-```bash
-codex exec [FLAGS] --dangerously-bypass-approvals-and-sandbox \
-  '$imagegen <PROMPT>. Save to <PATH> at exactly WxH pixels.'
-```
-
-`--dangerously-bypass-approvals-and-sandbox` removes Codex's built-in approval prompts AND its execution sandbox. The model can run arbitrary shell commands in your working directory. Only use this in trusted prompts inside trusted repos. See `SECURITY.md` in the repo for the full threat model.
-
-## Required flags (both modes)
-
-- `--sandbox workspace-write` — allow writes inside the current working directory
-- `--skip-git-repo-check` — also work outside git repos
-
-## Optional flags
-
-- `-i <file>` — attach a reference / source image (repeatable)
-- `-m <model>` — override the agent model (not the image model — leave default)
+- `< /dev/null` — **required from automation**; codex exec reads stdin alongside the prompt argument and hangs on "Reading additional input from stdin..." otherwise
+- `-i <file>` — attach reference/source image (repeatable, order meaningful; label each by index and role in the prompt)
+- `-m <model>` — overrides the *agent* model, not the image model; leave default
 - `--ephemeral` — do not persist the session
+- Bash tool timeout ≥ 300000 ms; complex prompts take up to 2 min
 
-## Output path
+## Output path and host post-processing
 
-As of codex-cli 0.130.0, the raw PNG lands at:
-
-```
-$CODEX_HOME/generated_images/<session-uuid>/ig_<hash>.png
-# default: ~/.codex/generated_images/...
-```
-
-Verified example:
-```
-~/.codex/generated_images/019e1515-cc8b-7bd3-8d16-7e5e088035dd/ig_0be263cbee14ac3c016a014d4ff52881918cde007093977dbb.png
-```
-
-In **Mode A**, you ask the sub-agent to `print` the absolute path; the host parses stdout. Deterministic fallback when parsing fails:
+The raw PNG lands at `$CODEX_HOME/generated_images/<session-uuid>/ig_<hash>.png` (default `~/.codex/...`). In Mode A, parse the printed path from stdout; deterministic fallback:
 
 ```bash
-find ~/.codex/generated_images -name 'ig_*.png' -mmin -3 -type f -print0 \
-  | xargs -0 ls -t | head -1
+find ~/.codex/generated_images -name 'ig_*.png' -mmin -3 -type f -print0 | xargs -0 ls -t | head -1
 ```
 
-In **Mode B**, the sub-agent runs `find` + `cp` itself and the path appears in the final answer.
-
-## Size post-processing
-
-gpt-image-2 does not honor the exact size requested. Verified:
-- requested: 256×256
-- delivered: 1254×1254
-
-Resize with `sips` on macOS — note arg order is `height width` (not width height):
+Then the host finishes locally. `sips` arg order is **height width**:
 
 ```bash
-sips -z 256 256 ./icon.png            # 256x256 square (order ambiguous when square)
+cp "$SRC" ./output.png
+sips -z 256 256 ./icon.png            # 256x256 square
 sips -z 900 1600 ./hero-banner.png    # 1600x900 landscape — HEIGHT 900, WIDTH 1600
-sips -z 1536 1024 ./og.png            # 1024x1536 portrait  — HEIGHT 1536, WIDTH 1024
 sips -z 630 1200 ./og-card.png        # 1200x630 OG card    — HEIGHT 630,  WIDTH 1200
 ```
 
-On Linux, fall back to ImageMagick (note: `WxH` order — width first):
+Linux (ImageMagick, width-first, `!` forces exact):
 
 ```bash
-convert input.png -resize 1600x900! output.png   # the ! forces exact dimensions
+convert input.png -resize 1600x900! output.png
 ```
+
+## Size: the real rules
+
+gpt-image-2 size constraints are deterministic, not "loose adherence":
+
+- both edges multiples of 16 · max edge ≤ 3840 · long:short ratio ≤ 3:1
+- **total pixels 655,360–8,294,400** · above 2560×1440 experimental · or `size: "auto"`
+
+A 256×256 request (65,536 px) violates the pixel floor → the model generates large (verified: 1254×1254). Fix: generate valid (1024×1024) and downscale on the host. In the host-run CLI, `--size WxH` is honored when valid. Popular valid sizes: 1024×1024, 1536×1024, 1024×1536, 2048×2048, 2048×1152, 3840×2160, 2160×3840.
+
+## Host-run bundled CLI (`image_gen.py`)
+
+Codex ships a full CLI for the OpenAI Images API inside its own skill files. This host can run it directly — deterministic, parameterized, no agent in the loop:
+
+```bash
+export IMAGE_GEN="${CODEX_HOME:-$HOME/.codex}/skills/.system/imagegen/scripts/image_gen.py"
+# Requires: OPENAI_API_KEY + `pip install openai` (and `pillow` for downscaling)
+```
+
+Subcommands: `generate`, `edit`, `generate-batch`. Defaults: model `gpt-image-2`, size `auto`, quality `medium`, format `png`. `--dry-run` prints the API payload without network. Never modify the script.
+
+Key flags:
+- `--quality low|medium|high|auto` — all subcommands. `low` for drafts; `medium|high|auto` for finals, dense text, identity edits
+- `--size WxH` — within the constraints above
+- `--background transparent` — **gpt-image-1.5 only**, with `--output-format png|webp`; not supported by gpt-image-2
+- `--input-fidelity low|high` — edit-only, **not for gpt-image-2** (always high-fidelity inputs)
+- `--mask <png>` — edit-only, single mask, same size as the image, must have alpha, applies to the first `--image`
+- `--image` — repeatable for multi-image edits; order meaningful, label roles in the prompt
+- `--n` — variants of one prompt (distinct assets need distinct jobs, not `--n`)
+- `--no-augment` — skip prompt restructuring; your prompt goes verbatim
+- augmentation fields: `--use-case --style --composition --constraints`
+- also: `--prompt-file --output-compression --moderation --max-attempts --fail-fast --force --downscale-max-dim --out-dir`
+
+Batch:
+
+```bash
+python "$IMAGE_GEN" generate-batch --input prompts.jsonl --out-dir ./out --concurrency 5
+```
+
+JSONL: one job per line — `{"prompt": "...", "size": "1536x1024", "quality": "high", "out": "name.png"}` — per-job overrides for `size quality background output_format n model out` and augmentation fields.
+
+## `remove_chroma_key.py` (transparent cutout helper)
+
+Ships inside Codex at `$CODEX_HOME/skills/.system/imagegen/scripts/remove_chroma_key.py`. Converts a flat chroma-key background to alpha; the host runs it after a Mode A keyed generation (needs Pillow):
+
+```bash
+python "${CODEX_HOME:-$HOME/.codex}/skills/.system/imagegen/scripts/remove_chroma_key.py" \
+  --input <source.png> --out <final.png> \
+  --auto-key border --soft-matte \
+  --transparent-threshold 12 --opaque-threshold 220 --despill
+```
+
+Flags (verified from argparse): `--input` `--out` (png/webp) · `--key-color #rrggbb` (default `#00ff00`) · `--tolerance 0-255` (hard-key mode) · `--auto-key none|corners|border` (sample key from the image) · `--soft-matte` (smooth alpha ramp) · `--transparent-threshold` / `--opaque-threshold` · `--edge-feather 0-64` (use sparingly) · `--edge-contract N` (shrink matte N px — fixes residual fringe) · `--despill`/`--spill-cleanup` (decontaminate key spill) · `--force`.
+
+Validation after removal: mode RGBA, alpha extrema include 0 and 255, all 4 corner alphas 0, no key-color fringe. Thin fringe → retry with `--edge-contract 1`. Hard tolerance-only mode (no `--soft-matte`) is for flat pixel-art only.
 
 ## Cost / usage
 
-- **ChatGPT/Codex subscription**: 1 image turn ≈ 3–5 text turns of usage limit
-- **API key mode** (`export OPENAI_API_KEY=sk-...`): priced per image
-  - Image output: **$30.00 / 1M output tokens**
-  - Image input: **$8.00 / 1M input tokens** ($2.00 / 1M cached input)
-  - Plus text-input tokens for your prompt (check the [OpenAI pricing page](https://openai.com/api/pricing/) for current text-input rates on this model)
-  - Typical per-image cost: roughly $0.04 – $0.35 depending on quality/size
+- **ChatGPT/Codex subscription**: 1 image turn ≈ 3–5 text turns of usage limit. Limits reset on a clock — the error message names the retry time.
+- **API key (host-run CLI)**: per-image billing — image output $30.00 / 1M output tokens, image input $8.00 / 1M input tokens ($2.00 / 1M cached), plus text-input tokens for the prompt (see [OpenAI pricing](https://openai.com/api/pricing/)). Typical per-image cost ~$0.04–$0.35.
 
 For batches of 10+ images, API-key mode is generally cheaper than the subscription.
-
-## Supported sizes (gpt-image-2)
-
-Per the [OpenAI image-generation guide](https://developers.openai.com/api/docs/guides/image-generation):
-
-- Maximum edge length: **≤ 3840 px**
-- Both edges must be **multiples of 16 px**
-- Long-edge to short-edge ratio: **≤ 3:1**
-- Total pixels: **≥ 655,360** AND **≤ 8,294,400**
-- Or pass `size: "auto"` and let the model pick
-
-Common popular sizes the guide mentions: `1024×1024`, `1536×1024`, `1024×1536`, `2048×2048`, `3840×2160`.
-
-Quality enum: `low` / `medium` / `high` / `auto` (default).
 
 ## Limits
 
 | Limit | Workaround |
 |---|---|
-| Transparent PNG not supported on gpt-image-2 | Per [OpenAI guide](https://developers.openai.com/api/docs/guides/image-generation): `Requests with background: "transparent" aren't supported for this model.` Use gpt-image-1.5 via Image API, or post-process |
-| Imprecise output size | Add "at exactly WxH pixels" to prompt; host resizes with `sips` |
-| Hard to place elements precisely in complex layouts | Simplify, or compose in SVG and convert to PNG |
-| Small non-Latin text (CJK, Arabic, etc.) can break | Use larger text + EXACT TEXT marker + double quotes |
-| Latency up to 2 min | Set Bash tool timeout ≥ 300000 ms |
+| No native transparency on gpt-image-2 | Chroma-key + host-run `remove_chroma_key.py` (default), or host-run CLI `gpt-image-1.5 --background transparent` (complex edges: hair/fur/glass/smoke) |
+| No per-call quality/masks/fidelity via codex | Host-run bundled CLI |
+| Size must satisfy the pixel-floor / multiple-of-16 rules | Generate valid, host downscales (or `--downscale-max-dim` in CLI) |
+| Precise element placement in complex layouts | Labeled layout blocks in the schema; final production typography in SVG/HTML after generation |
+| Small non-Latin text (CJK etc.) can break | ≥5% of image height, EXACT TEXT + double quotes, "Hangul syllables not decomposed" for Korean; dense labels → CLI `--quality high` |
+| Latency up to 2 min | Bash tool timeout ≥ 300000 ms |
+| Non-deterministic across runs | No seed control exposed as of 0.144. Iterate with change-X/preserve-Y instead of rerolling |
 
 ## Troubleshooting
 
 ### `codex: command not found`
-```bash
-npm i -g @openai/codex
-# Then ask the user to run `! codex login` and retry
-```
+`npm i -g @openai/codex`
 
 ### Authentication required
-Tell the user:
-> Run `! codex login` directly in this Claude Code session.
+Tell the user: run `! codex login` directly in the Claude Code session.
+
+### `ERROR: You've hit your usage limit ... try again at HH:MM` (verified on 0.144.1)
+Subscription quota exhausted — image turns burn it 3–5× faster. Either wait for the stated reset time, or switch to the host-run CLI with `OPENAI_API_KEY` (per-image billing, no subscription quota). Report the reset time to the user rather than silently retrying.
+
+### Hangs on "Reading additional input from stdin..."
+Missing `< /dev/null`.
+
+### Agent stalls or asks a question mid-exec
+The prompt triggered one of Codex's confirmation gates (usually a model/path downgrade toward gpt-image-1.5 or CLI mode). Use the host-run CLI instead — it has no gates. If you must route through codex, pre-authorize explicitly in the prompt: "I explicitly request the CLI fallback with scripts/image_gen.py and model gpt-image-1.5 ...".
+
+### Codex didn't print a path (Mode A) / no file at expected path (Mode B)
+Deterministic fallback: `find ~/.codex/generated_images -name 'ig_*.png' -mmin -3 -type f -print0 | xargs -0 ls -t | head -1` — newest-by-mtime is the one just produced.
 
 ### Output is wildly off
-1. Rewrite Subject + Details slots
-2. Confirm all five slots are filled
-3. Strip empty adjectives ("stunning, cinematic")
-4. For text work: EXACT TEXT marker + double quotes + "no duplicate text"
+1. Fill every schema slot (empty slots = the Codex agent's taste)
+2. Strip empty adjectives; name medium/palette/lighting/composition
+3. Text work: exact quoted copy + "appears exactly once" + typography/placement/contrast
+4. Still off → rewrite Style/medium and Subject slots; don't stack ten corrections in one rerun
 
-### No file at the expected output path (Mode B) or no path printed (Mode A)
-Use the deterministic fallback:
-```bash
-find ~/.codex/generated_images -name 'ig_*.png' -mmin -3 -type f -print0 \
-  | xargs -0 ls -t | head -1
-```
-The newest-by-mtime is the one just produced.
+### Transparent output came back opaque
+Corner alphas of 255 = the removal step never ran. Run `remove_chroma_key.py` on the saved source, or rerun the full chroma-key recipe.
 
 ### Same prompt, different result
-Expected. gpt-image-2 is non-deterministic. If/when codex exposes a `seed` option, use it; v0.130 does not.
+Expected — no seed control exposed as of 0.144. Iterate with change-X/preserve-Y instead of rerolling.
 
 ### Codex CLI was upgraded and `$imagegen` behaves differently
-Check `codex --version`. If above 0.130.x, scan the codex changelog for `$imagegen`/`imagegen`/`generated_images` mentions. Output paths and flag semantics are not part of the public contract. Open an issue on this skill's repo with the new behavior so the docs can be updated.
+Check `codex --version`. Scan the codex changelog for `imagegen`/`generated_images` mentions — paths and flag semantics are not public contract. Open an issue on this skill's repo with the new behavior.
+
+## Verified vs documentary
+
+Runtime-verified: output-path layout, size-floor behavior (256→1254), the agent-side prompt rewrite (`revised_prompt` in session logs), the usage-limit error, the stdin hang. Documented from Codex's own skill files but not yet independently re-verified end-to-end: the built-in tool exposing no quality/size parameters, and the full chroma-key removal round-trip. If a recipe misbehaves, check those two first and open an issue with findings.

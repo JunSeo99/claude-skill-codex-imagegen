@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-07-10
+
+### Added
+- **Transparent-background support** with a decision tree in `SKILL.md`: default chroma-key workflow (Mode A generation on a flat key color + host-run `remove_chroma_key.py`, the helper bundled inside Codex — no API key needed, works for white subjects), true native alpha via `gpt-image-1.5 --background transparent` through the bundled CLI, Pillow direct-draw path for exact-geometry marks, and a legacy-asset fallback.
+- **Host-run bundled CLI path** (`image_gen.py`, shipped inside Codex): quality control (`--quality`), exact sizes, masks, `generate-batch` JSONL batching, `--no-augment` verbatim prompts, per-image API billing — all without a codex agent turn or Mode B.
+- **Native-schema prompting**: documented that the Codex agent rewrites every prompt into its labeled schema before it reaches gpt-image-2 (verified via `revised_prompt` in session logs) and follows a specificity policy (detailed → normalized, vague → augmented with the agent's own taste). All recipes are now written in that schema directly; includes the agent's 19 use-case slugs.
+- Multi-image reference role-labeling (`Image 1: edit target; Image 2: style reference`) and a character-consistency recipe (anchor image + verbatim identity repetition).
+- New documented failure modes: subscription usage-limit error (verified, with reset-time handling), Codex confirmation-gate stalls in non-interactive runs, stdin hang (`< /dev/null` now on every invocation).
+
+### Changed
+- **Size guidance corrected**: replaced "gpt-image-2 size adherence is loose" with the deterministic constraints (edges multiples of 16, max edge 3840, ratio ≤ 3:1, total pixels 655,360–8,294,400) — explaining why 256×256 requests come back ~1254×1254 (pixel-floor violation).
+- **Quality guidance corrected**: `quality`/masks/`input_fidelity` are not controllable through codex (Mode A/B) at all; "use quality high" prose removed from codex-path recipes in favor of the host-run CLI.
+- `references/prompting-guide.md` restructured: native schema, prompt-rewrite model, first-50-words, multi-image/consistency section, size/quality control-surface table, expanded anti-patterns (incl. "quality high prose" and "same style as before").
+- `references/cli-reference.md` restructured: three execution paths (Mode A / Mode B / host-run CLI), host post-processing with deterministic path fallback, full helper-script flag references, verified-vs-documentary appendix.
+- README: rewrote "Why this skill exists" bullets, limitations table (transparency now has an applied workaround), requirements, and compatibility (0.144.1).
+
+### Compatibility
+- Verified against `codex-cli 0.144.1` on macOS. The transparent and host-run CLI workflows rely on helper scripts (`remove_chroma_key.py`, `image_gen.py`) that ship inside recent Codex versions under `$CODEX_HOME/skills/.system/imagegen/`.
+
 ## [0.1.0] - 2026-05-11
 
 ### Added
