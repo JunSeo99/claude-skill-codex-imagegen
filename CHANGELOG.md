@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-08-21
+
+### Added
+- `skill/scripts/run_codex_imagegen.py`: passes prompt files over stdin without shell interpolation, uses an ephemeral read-only Codex sandbox, and validates generated PNG paths before the host copies anything.
+
+### Changed
+- README quickstarts now use `npx skills add ... --skill codex-imagegen`, so successful installs participate in anonymous skills.sh install telemetry.
+- Simplified the distributed skill to one sandboxed Codex subscription path plus the existing explicit host-run Image API path.
+- Rewrote security documentation around prompt transport, path validation, sandboxing, and API-key handling.
+- Updated English, Korean, Japanese, and Simplified Chinese installation instructions.
+
+### Removed
+- The opt-in unsandboxed Codex execution path and direct prompt interpolation examples.
+
 ## [0.2.0] - 2026-07-10
 
 ### Added

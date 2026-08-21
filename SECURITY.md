@@ -6,58 +6,42 @@ Open a GitHub issue or email jun@indexfinger.org.
 
 ## Trust boundary
 
-This skill runs the OpenAI Codex CLI as a sub-agent from inside your Claude Code session. The Codex sub-agent is itself an LLM that decides which shell commands to execute on your machine. Whatever permissions you grant the Codex sub-agent, you are granting to a model whose prompt you do not fully control once generation begins.
+This skill starts the OpenAI Codex CLI as a sub-agent from a Claude Code session. The distributed skill therefore limits both what reaches the subprocess and which result paths the host will accept.
 
-## The two run modes
+## Sandboxed Codex path
 
-This skill defines two run modes. Read SKILL.md for the full workflow; this file documents the security difference.
+The skill has one Codex subscription execution path: `skill/scripts/run_codex_imagegen.py`.
 
-### Mode A — Safe default
+The launcher:
 
-Invocation:
+- reads the image brief from a UTF-8 file and passes it to `codex exec` over stdin with a subprocess argument array;
+- never places user prompt text inside a shell command;
+- runs an ephemeral Codex session with a read-only shell sandbox;
+- removes API keys, tokens, secrets, passwords, and credential variables from the Codex subprocess environment;
+- appends a fixed instruction to use only the built-in image-generation tool and avoid shell commands or workspace changes;
+- accepts only existing `.png` files that canonically resolve under `$CODEX_HOME/generated_images/`, defaulting to `~/.codex/generated_images/`;
+- prints validated paths on stdout and sends Codex logs to stderr.
 
-```bash
-codex exec --sandbox workspace-write '$imagegen <PROMPT>. Generate the image
-and print ONLY the absolute path of the resulting PNG. Do NOT copy or move.'
-```
+The host performs any copy, resize, or post-processing step in its own approved tool context. It must not copy a path that the launcher rejects.
 
-- Codex's built-in sandbox is active.
-- Codex's approval prompts are active.
-- The sub-agent is told to **only** generate the image and print the path. It does not need to `cp` or `sips`.
-- The host (Claude Code in your terminal) reads the path from stdout and performs the file move/resize itself, in its own approved-tool context.
-- Worst-case sub-agent compromise: a malicious prompt could still cause Codex to attempt unrelated commands. Writes outside the workspace are blocked by the sandbox, and elevated operations require approval prompts that, run non-interactively, fail rather than execute silently. **Writes inside the workspace remain possible under `workspace-write`** — the prompt instruction "do not copy or move" plus the sandbox + approval gating shrinks but does not eliminate blast radius. This is still strictly safer than Mode B's arbitrary-shell-without-approval posture.
+## Prompt files
 
-This is the default for every recipe in SKILL.md.
+Write prompt files with the host's file-write tool. Do not construct them with shell interpolation, `echo`, `printf`, or a shell variable. Prompt files may contain quotes, command-looking text, or other metacharacters safely because the launcher sends their contents over stdin rather than evaluating them.
 
-### Mode B — Automated (opt-in)
+Delete temporary prompt files after generation if they contain confidential project information.
 
-Invocation:
+## Direct Image API path
 
-```bash
-codex exec --sandbox workspace-write --dangerously-bypass-approvals-and-sandbox \
-  '$imagegen <PROMPT>. Save to <PATH> at exactly WxH pixels.'
-```
+Some advanced controls require Codex's bundled `image_gen.py` and an already configured `OPENAI_API_KEY`. This path runs directly in the host's approved context and may incur per-image API charges.
 
-- `--dangerously-bypass-approvals-and-sandbox` disables Codex's approval prompts AND its execution sandbox.
-- The Codex sub-agent can now run arbitrary shell commands in your current working directory with no further confirmation.
-- This is convenient for batch jobs but is a real trust hand-off. If the prompt source, the working directory, or the network path to OpenAI is somehow influenced by an attacker, the sub-agent can act on that influence.
-
-**Use Mode B only when all of the following are true:**
-
-1. You wrote the prompt yourself (or fully reviewed it).
-2. Your current working directory contains no sensitive files you would not want overwritten or read.
-3. You are batching many similar generations and the convenience of one-shot `cp`/`sips` is worth the trust hand-off.
-
-When in doubt, stay on Mode A. The cost is one extra shell step performed by your host Claude Code session.
-
-## What this skill never does on its own
-
-- Read, modify, or transmit files outside the current working directory and `~/.codex/generated_images/`.
-- Send your prompts anywhere except OpenAI's Codex CLI (which forwards to OpenAI's image-generation API).
-- Store, log, or transmit your API keys. `OPENAI_API_KEY`, if set, remains in your environment only.
+- Do not print, copy, log, or pass the API key on a command line.
+- Do not switch from subscription usage to API billing without the user's request or confirmation.
+- Prefer `--prompt-file` and explicit output paths.
 
 ## Supply-chain notes
 
-- This repo ships a prebuilt `dist/codex-imagegen.skill` zip. It contains exactly the files in `skill/`. You can verify with `unzip -l dist/codex-imagegen.skill`.
-- The skill itself runs no installer, no postinstall hook, and no third-party downloads. It tells Claude how to invoke `codex exec` and how to post-process results locally with `sips`/`convert` and two helper scripts (`remove_chroma_key.py`, `image_gen.py`) that are read from your **existing Codex installation** (`$CODEX_HOME/skills/.system/imagegen/`) — the skill never fetches or modifies them.
-- If you'd rather not trust the prebuilt bundle, install via Option A or Option C in the README (symlink/copy directly from the `skill/` directory).
+- `dist/codex-imagegen.skill` contains the files from `skill/`; verify with `unzip -l dist/codex-imagegen.skill`.
+- The skill has no installer, postinstall hook, or third-party download step.
+- Runtime helpers are read from the user's existing Codex installation under `$CODEX_HOME/skills/.system/imagegen/`; the skill does not modify them.
+- The safe launcher invokes only the locally resolved `codex` executable and does not use a shell.
+- To avoid the prebuilt bundle, install with the Skills CLI or symlink/copy the audited `skill/` directory.

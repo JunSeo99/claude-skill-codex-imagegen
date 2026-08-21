@@ -1,5 +1,5 @@
 # claude-skill-codex-imagegen
-[![skills.sh](https://skills.sh/b/JunSeo99/claude-skill-codex-imagegen)](https://skills.sh/JunSeo99/claude-skill-codex-imagegen)
+[![skills.sh](https://skills.sh/b/JunSeo99/claude-skill-codex-imagegen)](https://skills.sh/JunSeo99/claude-skill-codex-imagegen/codex-imagegen)
 
 **Use OpenAI's [gpt-image-2](https://developers.openai.com/api/docs/models/gpt-image-2) — OpenAI's most capable image generation model — from inside [Claude Code](https://docs.claude.com/en/docs/claude-code).**
 🌐 **English** · [한국어](./README.ko.md) · [日本語](./README.ja.md) · [简体中文](./README.zh-CN.md)
@@ -17,11 +17,11 @@ Claude Code has no built-in image model. So most vibe-coded sites either ship wi
 ### 🚀 Quickstart
 
 ```bash
-git clone https://github.com/JunSeo99/claude-skill-codex-imagegen \
-  ~/.claude/skills/codex-imagegen
+npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen \
+  --skill codex-imagegen
 ```
 
-Restart Claude Code, then ask in natural language:
+Start a new Claude Code session, then ask in natural language:
 
 > *"Generate a 1600×900 hero image for this landing page, save to assets/hero.png."*
 
@@ -55,9 +55,9 @@ Claude Code can already drive the Codex CLI, but `$imagegen` has rough edges tha
 - **`quality`, masks, and `input_fidelity` are not controllable through codex at all** — they exist only on the bundled CLI (`image_gen.py`), which the skill runs host-side when those levers matter.
 - The raw PNG lands at `~/.codex/generated_images/<session-uuid>/ig_*.png` — not where you asked
 - "Stunning, cinematic, 8K" keyword prompts produce visibly worse output than structured briefs — the skill enforces a schema-based prompt with concrete art direction
-- The naive non-interactive recipe requires `--dangerously-bypass-approvals-and-sandbox`, which hands the Codex sub-agent broad shell power — not a safe default
+- Passing a user prompt directly inside a shell command creates an injection boundary — the bundled launcher sends prompts over stdin, uses a read-only sandbox, and validates every returned PNG path before the host copies anything
 
-This skill bakes those facts in, defaults to a **safer split workflow** (Codex generates only; the host does the file moves and post-processing), and only opts into the bypass mode when explicitly requested.
+This skill bakes those facts into a **sandboxed split workflow**: Codex generates only; the host validates the generated path and performs file moves and post-processing in its own approved context.
 
 ### What people use it for
 
@@ -74,11 +74,12 @@ The tool is general — anything that needs a PNG/JPEG/WebP written to disk fits
 
 The workflow it was originally built around is **solo developers shipping sites without a designer** — where image quality and stylistic consistency are the main signal separating a vibe-coded site from a polished product. With a `DESIGN.md` at the project root (see [Usage](#usage)), Claude Code can generate a coherent image set across the whole site in one pass. But none of that requires you to be using it for a site; the skill is just as happy producing a single OG card or a batch of game-asset placeholders.
 
-> ⚠️ **Security note**: this skill defines two run modes. The default is safe; the opt-in "automated" mode uses `--dangerously-bypass-approvals-and-sandbox`. Read [`SECURITY.md`](SECURITY.md) before using the automated mode in a directory whose prompts or contents you do not control.
+> **Security note:** the distributed skill has one Codex execution path. It passes the prompt by file/stdin rather than shell interpolation, keeps the Codex shell sandbox read-only, and accepts only generated PNGs that resolve under Codex's generated-images directory. See [`SECURITY.md`](SECURITY.md).
 
 ## Requirements
 
 - macOS or Linux
+- Python 3.9 or newer (`python3`) for the bundled safe launcher
 - [Claude Code](https://docs.claude.com/en/docs/claude-code) — this skill is a filesystem skill loaded from `~/.claude/skills/`, which is a Claude Code feature (Claude.ai web uses a different skill upload mechanism)
 - [Codex CLI](https://developers.openai.com/codex/cli) v0.130 or newer (`npm i -g @openai/codex`) — the transparent-cutout and host-run CLI workflows rely on helper scripts (`remove_chroma_key.py`, `image_gen.py`) that ship inside recent Codex versions (verified on 0.144.1)
 - A logged-in Codex session (`codex login`) — uses your ChatGPT/Codex subscription
@@ -88,7 +89,16 @@ Verified against `codex-cli 0.144.1` on macOS (Darwin 25.4.0); originally valida
 
 ## Installation
 
-### Option A — clone into the skills directory (recommended for daily use)
+### Option A — install with the Skills CLI (recommended)
+
+```bash
+npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen \
+  --skill codex-imagegen
+```
+
+This is the shortest cross-agent install path and, when telemetry is enabled, lets anonymous Skills CLI telemetry count the install on [skills.sh](https://skills.sh/JunSeo99/claude-skill-codex-imagegen/codex-imagegen).
+
+### Option B — symlink a clone for development
 
 ```bash
 git clone https://github.com/JunSeo99/claude-skill-codex-imagegen.git
@@ -98,7 +108,7 @@ ln -s "$(pwd)/claude-skill-codex-imagegen/skill" ~/.claude/skills/codex-imagegen
 
 Symlinking from `skill/` lets you `git pull` to update without re-copying files.
 
-### Option B — install the prebuilt `.skill` bundle
+### Option C — install the prebuilt `.skill` bundle
 
 A pre-packaged distributable lives in `dist/codex-imagegen.skill` (it's a zip with a `.skill` extension).
 
@@ -108,7 +118,7 @@ mkdir -p ~/.claude/skills
 unzip claude-skill-codex-imagegen/dist/codex-imagegen.skill -d ~/.claude/skills/
 ```
 
-### Option C — copy the folder
+### Option D — copy the folder
 
 ```bash
 git clone https://github.com/JunSeo99/claude-skill-codex-imagegen.git
@@ -116,7 +126,7 @@ mkdir -p ~/.claude/skills
 cp -r claude-skill-codex-imagegen/skill ~/.claude/skills/codex-imagegen
 ```
 
-Restart Claude Code (or start a new session) so the skill is discovered.
+Start a new Claude Code session if the skill does not appear immediately.
 
 ## Usage
 
@@ -134,17 +144,9 @@ Any request that produces a visual file saved to disk:
 
 > **You**: Make a 512×512 hero icon for my landing page — a single seedling growing from a flat horizon, line-art only, no text.
 >
-> **Claude**: *(invokes the skill, composes a prompt in Codex's native labeled schema, runs `codex exec` in **Mode A — safe**, parses the absolute path from stdout, `cp`s and `sips`-resizes it to `./assets/hero-icon.png`, then opens the file with Read to verify it matches your intent)*
+> **Claude**: *(invokes the skill, composes a prompt in Codex's native labeled schema, writes it to a temporary file, runs the bundled sandboxed launcher, validates the returned generated-image path, resizes it to `./assets/hero-icon.png`, then opens the file to verify it)*
 
-By default Claude runs Codex without `--dangerously-bypass-approvals-and-sandbox` and does the `cp`/`sips` step itself, in its own approved-tool context. The Codex sub-agent never gets carte-blanche shell access during normal use.
-
-If you want a single-step automated flow (Mode B) — e.g. for batching — you can opt in:
-
-> **You**: Generate these 12 favicons in automated mode.
->
-> **Claude**: *(after confirming, runs Codex with `--dangerously-bypass-approvals-and-sandbox` so the sub-agent handles `cp`/`sips` itself)*
-
-Read [`SECURITY.md`](SECURITY.md) before opting in.
+The launcher passes prompt content over stdin with no shell interpolation, keeps Codex's shell sandbox read-only, and validates that every source PNG resolves inside `~/.codex/generated_images/` before the host copies or resizes it. For large batches, the skill can use the host-run Image API CLI only when the user has `OPENAI_API_KEY` configured and wants per-image API billing.
 
 For complex prompts (text in the image, photo edits, brand assets), Claude reads `references/prompting-guide.md` before generating to apply the structured prompt template and avoid known pitfalls.
 
@@ -197,12 +199,14 @@ Both pages were produced in the same session. The right-hand one took roughly on
 
 ```
 skill/
-├── SKILL.md                  Prompt-flow model, Mode A & B, execution-control table,
+├── SKILL.md                  Prompt-flow model, sandboxed workflow, control table,
 │                             transparency decision tree, recipes, failure modes
+├── scripts/
+│   └── run_codex_imagegen.py Safe stdin launcher and generated-path validator
 ├── references/
 │   ├── prompting-guide.md    Native schema, first-50-words, text rendering, people,
 │   │                         edit pattern, multi-image/consistency, anti-patterns, Korean text
-│   └── cli-reference.md      Mode A/B flags, host-run bundled CLI (image_gen.py),
+│   └── cli-reference.md      Safe launcher, host-run bundled CLI (image_gen.py),
 │                             remove_chroma_key.py flags, size rules, costs, troubleshooting
 └── assets/
     └── hero.png              Sample 1600×900 hero image generated by gpt-image-2
@@ -267,7 +271,7 @@ python3 path/to/skill-creator/scripts/package_skill.py skill/ dist/
 
 ## Security
 
-See [`SECURITY.md`](SECURITY.md) for the trust boundary and the threat model around `--dangerously-bypass-approvals-and-sandbox`.
+See [`SECURITY.md`](SECURITY.md) for the trust boundary, prompt-transport rules, sandbox policy, and generated-path validation.
 
 ## Changelog
 

@@ -21,11 +21,11 @@ Claude Code には組み込みの画像モデルがありません。そのた�
 ### 🚀 クイックスタート
 
 ```bash
-git clone https://github.com/JunSeo99/claude-skill-codex-imagegen \
-  ~/.claude/skills/codex-imagegen
+npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen \
+  --skill codex-imagegen
 ```
 
-Claude Code を再起動し、自然言語で依頼:
+新しい Claude Code セッションを開始し、自然言語で依頼:
 
 > *「このランディングページ用に 1600×900 のヒーロー画像を作って、assets/hero.png に保存して。」*
 
@@ -39,7 +39,7 @@ Claude Code を再起動し、自然言語で依頼:
 
 ## より詳しく
 
-詳細(インストール手順、実行モード、Codex エージェントによるプロンプト再構成とネイティブスキーマ、透過背景ワークフロー(クロマキー + gpt-image-1.5)、サイズ規則、コスト、セキュリティ、既知の制約、比較デモ)は **[英語版 README](./README.md)** にまとめてあります。
+詳細(インストール手順、サンドボックス実行方式、Codex エージェントによるプロンプト再構成とネイティブスキーマ、透過背景ワークフロー(クロマキー + gpt-image-1.5)、サイズ規則、コスト、セキュリティ、既知の制約、比較デモ)は **[英語版 README](./README.md)** にまとめてあります。
 
 ## ライセンス
 

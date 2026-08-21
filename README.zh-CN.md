@@ -21,11 +21,11 @@ Claude Code 本身没有内置图像模型。所以大多数"氛围编码"出来
 ### 🚀 快速开始
 
 ```bash
-git clone https://github.com/JunSeo99/claude-skill-codex-imagegen \
-  ~/.claude/skills/codex-imagegen
+npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen \
+  --skill codex-imagegen
 ```
 
-重启 Claude Code,然后用自然语言:
+启动新的 Claude Code 会话,然后用自然语言:
 
 > *"为这个 landing page 生成一张 1600×900 的主视觉图,保存到 assets/hero.png。"*
 
@@ -39,7 +39,7 @@ git clone https://github.com/JunSeo99/claude-skill-codex-imagegen \
 
 ## 更多信息
 
-完整细节(安装方式、运行模式、Codex 代理的 prompt 重构机制与原生 schema、透明背景工作流(色键抠图 + gpt-image-1.5)、尺寸规则、成本、安全、已知限制、对比 demo)请见 **[英文 README](./README.md)**。
+完整细节(安装方式、沙箱执行方式、Codex 代理的 prompt 重构机制与原生 schema、透明背景工作流(色键抠图 + gpt-image-1.5)、尺寸规则、成本、安全、已知限制、对比 demo)请见 **[英文 README](./README.md)**。
 
 ## 许可证
 

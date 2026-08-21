@@ -149,7 +149,7 @@ The GPT Image family accepts multiple input images (up to 16 in edit workflows).
 
 Two execution paths with different control surfaces (see SKILL.md truth table):
 
-| Lever | Codex Mode A/B (default) | Host-run bundled CLI (`OPENAI_API_KEY`) |
+| Lever | Sandboxed Codex subscription path | Host-run bundled CLI (`OPENAI_API_KEY`) |
 |---|---|---|
 | `quality` | not a parameter — accept default | `--quality low\|medium\|high\|auto` |
 | exact size | prompt "exactly WxH" → agent downscales after generation | `--size WxH` within constraints |

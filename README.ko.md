@@ -21,11 +21,11 @@ Claude Code에는 자체 이미지 모델이 없습니다. 그래서 대부분�
 ### 🚀 빠른 시작
 
 ```bash
-git clone https://github.com/JunSeo99/claude-skill-codex-imagegen \
-  ~/.claude/skills/codex-imagegen
+npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen \
+  --skill codex-imagegen
 ```
 
-Claude Code를 재시작한 뒤 자연어로 요청:
+새 Claude Code 세션을 시작한 뒤 자연어로 요청:
 
 > *"이 랜딩 페이지에 어울리는 1600×900 히어로 이미지 만들어서 assets/hero.png 에 저장해줘."*
 
@@ -39,7 +39,7 @@ Claude Code를 재시작한 뒤 자연어로 요청:
 
 ## 더 자세한 내용
 
-세부 사항(설치 옵션, 실행 모드, Codex 에이전트의 프롬프트 재가공 구조와 네이티브 스키마, 투명 배경 워크플로우(크로마키 + gpt-image-1.5), 사이즈 규칙, 비용, 보안, 알려진 한계, 비교 데모)은 **[영문 README](./README.md)** 에 정리되어 있습니다.
+세부 사항(설치 옵션, 샌드박스 실행 방식, Codex 에이전트의 프롬프트 재가공 구조와 네이티브 스키마, 투명 배경 워크플로우(크로마키 + gpt-image-1.5), 사이즈 규칙, 비용, 보안, 알려진 한계, 비교 데모)은 **[영문 README](./README.md)** 에 정리되어 있습니다.
 
 ## 라이선스
 
