@@ -39,7 +39,7 @@ npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen \
 
 ## 更多信息
 
-完整细节(安装方式、沙箱执行方式、Codex 代理的 prompt 重构机制与原生 schema、透明背景工作流(色键抠图 + gpt-image-1.5)、尺寸规则、成本、安全、已知限制、对比 demo)请见 **[英文 README](./README.md)**。
+完整细节(安装方式、隔离执行方式、Codex 代理的 prompt 重构机制与原生 schema、透明背景原生 Alpha 生成与像素验证、尺寸规则、安全、已知限制、对比 demo)请见 **[英文 README](./README.md)**。
 
 ## 许可证
 

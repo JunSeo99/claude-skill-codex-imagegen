@@ -1,0 +1,9 @@
+$imagegen
+Use case: background-extraction
+Asset type: transparent PNG end-to-end launcher test
+Primary request: Create one simple cobalt-blue five-point star sticker, centered and isolated.
+Style/medium: clean rounded 3D icon with crisp edges.
+Composition/framing: one subject with generous transparent padding; do not touch the canvas edges.
+Background: genuinely transparent with a real alpha channel.
+Constraints: fully transparent canvas corners; preserve smooth anti-aliased edge alpha.
+Avoid: checkerboard pattern, white or colored matte, floor plane, cast shadow, reflection, border, text, or watermark.

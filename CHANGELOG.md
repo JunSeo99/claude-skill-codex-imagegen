@@ -1,58 +1,59 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to this project are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.2.2] - 2026-08-21
+
+### Added
+
+- `skill/scripts/verify_png_alpha.py`: dependency-free decoded-pixel verification for RGBA/gray-alpha PNGs, including alpha extrema, transparent corners, and pixel counts.
+- GitHub Actions CI and standard-library unit tests for the launcher security boundary, alpha validator, documentation claims, and packaged `.skill` parity.
+- Live transparent-output validation against `codex-cli 0.149.0`: RGBA output with alpha extrema 0–255 and all four corners fully transparent.
+
+### Changed
+
+- Corrected the obsolete transparency description: GPT Image 2 supports transparent backgrounds in preview.
+- Replaced obsolete workaround and alternate-model guidance with native-alpha prompting plus decoded-pixel validation.
+- Reduced the distributed skill to one Codex subscription path; it does not switch to direct API billing or read API credentials.
+- Raised the supported Codex CLI baseline to 0.149.0.
+
+### Security
+
+- Run Codex from an empty temporary directory with user config and project rules ignored.
+- Disable shell, unified execution, hooks, plugins, apps, browser, computer-use, and multi-agent features.
+- Allowlist the subprocess environment, validate attachment signatures and sizes, and require a JSON-schema final response.
+- Parse only the structured final message and accept only existing non-symlink PNGs inside the generated-images root.
 
 ## [0.2.1] - 2026-08-21
 
 ### Added
-- `skill/scripts/run_codex_imagegen.py`: passes prompt files over stdin without shell interpolation, uses an ephemeral read-only Codex sandbox, and validates generated PNG paths before the host copies anything.
+
+- `skill/scripts/run_codex_imagegen.py`: prompt-file/stdin transport, ephemeral read-only Codex execution, and generated-path validation.
 
 ### Changed
-- README quickstarts now use `npx skills add ... --skill codex-imagegen`, so successful installs participate in anonymous skills.sh install telemetry.
-- Simplified the distributed skill to one sandboxed Codex subscription path plus the existing explicit host-run Image API path.
-- Rewrote security documentation around prompt transport, path validation, sandboxing, and API-key handling.
+
+- Updated all quickstarts to use `npx skills add ... --skill codex-imagegen` so successful installs can participate in anonymous skills.sh telemetry.
+- Rewrote security documentation around prompt transport, path validation, and sandboxing.
 - Updated English, Korean, Japanese, and Simplified Chinese installation instructions.
 
 ### Removed
-- The opt-in unsandboxed Codex execution path and direct prompt interpolation examples.
+
+- The opt-in unsandboxed execution path and direct prompt interpolation examples.
 
 ## [0.2.0] - 2026-07-10
 
 ### Added
-- **Transparent-background support** with a decision tree in `SKILL.md`: default chroma-key workflow (Mode A generation on a flat key color + host-run `remove_chroma_key.py`, the helper bundled inside Codex — no API key needed, works for white subjects), true native alpha via `gpt-image-1.5 --background transparent` through the bundled CLI, Pillow direct-draw path for exact-geometry marks, and a legacy-asset fallback.
-- **Host-run bundled CLI path** (`image_gen.py`, shipped inside Codex): quality control (`--quality`), exact sizes, masks, `generate-batch` JSONL batching, `--no-augment` verbatim prompts, per-image API billing — all without a codex agent turn or Mode B.
-- **Native-schema prompting**: documented that the Codex agent rewrites every prompt into its labeled schema before it reaches gpt-image-2 (verified via `revised_prompt` in session logs) and follows a specificity policy (detailed → normalized, vague → augmented with the agent's own taste). All recipes are now written in that schema directly; includes the agent's 19 use-case slugs.
-- Multi-image reference role-labeling (`Image 1: edit target; Image 2: style reference`) and a character-consistency recipe (anchor image + verbatim identity repetition).
-- New documented failure modes: subscription usage-limit error (verified, with reset-time handling), Codex confirmation-gate stalls in non-interactive runs, stdin hang (`< /dev/null` now on every invocation).
+
+- Native-schema prompting, multiple reference-image role labeling, character-consistency guidance, deterministic size rules, and transparent-asset experiments.
+- Expanded prompting and CLI references plus additional failure-mode guidance.
 
 ### Changed
-- **Size guidance corrected**: replaced "gpt-image-2 size adherence is loose" with the deterministic constraints (edges multiples of 16, max edge 3840, ratio ≤ 3:1, total pixels 655,360–8,294,400) — explaining why 256×256 requests come back ~1254×1254 (pixel-floor violation).
-- **Quality guidance corrected**: `quality`/masks/`input_fidelity` are not controllable through codex (Mode A/B) at all; "use quality high" prose removed from codex-path recipes in favor of the host-run CLI.
-- `references/prompting-guide.md` restructured: native schema, prompt-rewrite model, first-50-words, multi-image/consistency section, size/quality control-surface table, expanded anti-patterns (incl. "quality high prose" and "same style as before").
-- `references/cli-reference.md` restructured: three execution paths (Mode A / Mode B / host-run CLI), host post-processing with deterministic path fallback, full helper-script flag references, verified-vs-documentary appendix.
-- README: rewrote "Why this skill exists" bullets, limitations table (transparency now has an applied workaround), requirements, and compatibility (0.144.1).
 
-### Compatibility
-- Verified against `codex-cli 0.144.1` on macOS. The transparent and host-run CLI workflows rely on helper scripts (`remove_chroma_key.py`, `image_gen.py`) that ship inside recent Codex versions under `$CODEX_HOME/skills/.system/imagegen/`.
+- Corrected size guidance to the deterministic GPT Image 2 constraints.
+- Documented that quality, masks, and fidelity are not Codex subscription launcher parameters.
 
 ## [0.1.0] - 2026-05-11
 
 ### Added
-- Initial public release.
-- `skill/SKILL.md` — workflow with two explicit run modes (safe default + opt-in automated), recipes for icon sets / OG cards / image edits, failure-mode table, trigger keywords.
-- `skill/references/prompting-guide.md` — 5-part prompt structure (Scene → Subject → Details → Use case → Constraints), text-rendering tips, edit pattern (change-X / preserve-Y), anti-patterns, multilingual tips, before/after examples.
-- `skill/references/cli-reference.md` — `codex exec` flag breakdown, output path layout under `~/.codex/generated_images/`, `sips`/`convert` post-processing, cost notes, troubleshooting.
-- `skill/assets/hero.png` — sample 1600×900 image generated by gpt-image-2 via this skill.
-- `dist/codex-imagegen.skill` — prepackaged distributable (zip-with-rename).
-- `README.md`, `LICENSE` (MIT), `SECURITY.md` (trust boundary + Mode A/B threat model), `CHANGELOG.md`, `.gitignore`.
 
-### Compatibility
-- Verified against `codex-cli 0.130.0` on macOS (Darwin 25.4.0).
-- Output-path layout under `~/.codex/generated_images/` and `$imagegen` invocation semantics are observed behavior of codex-cli 0.130.0; not part of the public contract.
-
-### Known limitations
-- gpt-image-2 does not return the exact requested pixel dimensions; the host resizes with `sips -z H W` (macOS) or `convert -resize WxH!` (Linux).
-- gpt-image-2 does not support `background: "transparent"` ([source](https://developers.openai.com/api/docs/guides/image-generation)); use gpt-image-1.5 via the Image API for transparent assets.
-- Latency up to ~2 min for complex prompts.
+- Initial Claude Code skill, prompting guide, CLI reference, sample asset, distributable bundle, README, license, and security policy.

@@ -3,94 +3,100 @@
 ## Contents
 
 - Verified baseline
-- Execution paths
 - Safe launcher
-- Output handling
+- Input and output boundaries
+- Transparent PNG validation
 - Size rules
-- Host-run Image API CLI
-- Chroma-key helper
 - Cost and limits
 - Troubleshooting
 
 ## Verified baseline
 
-The image workflow was validated against `codex-cli 0.144.1` on macOS, with the safe launcher's stdin and sandbox flags rechecked against 0.147.0. The `$imagegen` output layout, bundled helpers, and invocation semantics are not a public compatibility contract. Treat these versions as last-known-good baselines.
+Use `codex-cli 0.149.0` or newer. This baseline provides the launcher controls used to ignore local configuration and rules, disable unrelated tool features, select a read-only sandbox, constrain the final response with JSON Schema, and run in an empty temporary working directory.
 
-## Execution paths
-
-| | Sandboxed Codex subscription path | Host-run bundled Image API CLI |
-|---|---|---|
-| What runs | `run_codex_imagegen.py` starts a Codex agent for generation only | Host runs `image_gen.py` directly |
-| Auth | Codex login and subscription | Existing `OPENAI_API_KEY`, per-image billing |
-| Shell sandbox | Read-only and ephemeral | Host's approved tool context |
-| Sensitive environment | API keys, tokens, secrets, passwords, and credentials removed | Host controls the explicit API environment |
-| Prompt transport | UTF-8 file → subprocess stdin; no shell interpolation | `--prompt-file` or JSONL input |
-| Output trust | Existing PNG must resolve under `$CODEX_HOME/generated_images/` | Explicit host-controlled output path |
-| Per-call controls | Image tool defaults | `--size`, `--quality`, `--background`, `--mask`, `--n`, and more |
-
-Use the sandboxed Codex path by default. Use the host-run CLI only when the user already has API billing configured and needs controls not exposed by the Codex image tool.
+The `$imagegen` output layout under `$CODEX_HOME/generated_images/` is observed behavior rather than a public compatibility contract. Treat `0.149.0` as the last known-good baseline and rerun the repository tests when upgrading Codex.
 
 ## Safe launcher
 
-Write the complete brief, including the literal `$imagegen`, to a UTF-8 file with the host's file-write tool. Do not interpolate untrusted prompt text into a shell command.
+Write the complete brief, including the literal `$imagegen`, to a UTF-8 file with the host's file-write tool. Never interpolate the prompt into a command string.
 
 ```bash
 python3 "<SKILL_DIR>/scripts/run_codex_imagegen.py" \
   --prompt-file "<PROMPT_FILE>"
 ```
 
-Reference and edit images are repeatable. Their order must match the role labels in the prompt:
+Attach reference and edit images in the same order as their role labels:
 
 ```bash
 python3 "<SKILL_DIR>/scripts/run_codex_imagegen.py" \
   --prompt-file "<PROMPT_FILE>" \
   --image "./base.png" \
-  --image "./style-reference.png"
+  --image "./style-reference.webp"
 ```
 
-The launcher uses these Codex controls internally:
+The launcher applies these controls:
 
-- `-` reads the prompt from stdin.
-- `--sandbox read-only` prevents model-generated shell writes.
-- `--ephemeral` avoids persisting the agent session.
-- `--output-last-message` provides a stable final-response source for validation.
-- `--skip-git-repo-check` permits generation outside a Git repository.
+- Send the prompt over stdin with a subprocess argument array.
+- Run an ephemeral session with `--sandbox read-only`.
+- Use `--ignore-user-config` and `--ignore-rules`.
+- Disable shell, unified execution, hooks, plugins, apps, browser, computer-use, and multi-agent features.
+- Run from a newly created empty temporary directory.
+- Pass only an allowlist of runtime environment variables.
+- Limit prompt and attachment sizes and verify PNG/JPEG/WebP attachment signatures.
+- Require a JSON-schema final response containing only generated PNG paths.
+- Accept only existing non-symlink PNGs under `$CODEX_HOME/generated_images/`.
 
-The launcher appends a fixed instruction to use only the built-in image-generation tool, avoid shell commands and workspace changes, and return absolute PNG paths. It invokes Codex with a subprocess argument list and `shell=False` semantics.
+Do not remove a control when generation fails. Report the failure or upgrade the Codex CLI.
 
-Before starting Codex, the launcher removes environment variables whose names contain `API_KEY`, `TOKEN`, `SECRET`, `PASSWORD`, or `CREDENTIAL`. The subscription path authenticates through the existing Codex login instead.
+## Input and output boundaries
 
-## Output handling
+The launcher rejects:
 
-The generated PNG normally lands at `$CODEX_HOME/generated_images/<session-id>/ig_<hash>.png`, defaulting to `~/.codex/generated_images/...`.
+- empty prompts, prompts without `$imagegen`, prompts larger than 64 KiB, and symlinked prompt files;
+- attachments larger than 50 MiB, symlinks, unsupported extensions, and extension/signature mismatches;
+- free-form final messages, extra JSON fields, relative output paths, more than eight paths, duplicate paths, symlinks, missing files, non-PNG files, and paths outside the generated-images root.
 
-The launcher resolves every returned path canonically and prints it only when all checks pass:
+Only stdout lines emitted after all checks pass are trusted source PNG paths. The child transcript is suppressed so the image brief is not echoed into host logs, and no diagnostic stream is parsed for paths.
 
-- inside the configured generated-images root after symlink resolution;
-- existing regular file;
-- `.png` suffix;
-- not duplicated in the output.
-
-Do not fall back to copying an arbitrary path printed by the agent. If validation fails, inspect stderr and rerun once.
-
-After validation, the host may copy and resize. `sips` uses height before width:
+After validation, copy or resize in the host's approved context. On macOS, `sips` uses height before width:
 
 ```bash
 cp "$SRC" ./output.png
-sips -z 256 256 ./icon.png
+sips -z 256 256 ./output.png
 sips -z 900 1600 ./hero-banner.png
 sips -z 630 1200 ./og-card.png
 ```
 
-Linux ImageMagick uses width first, and `!` forces exact dimensions:
+On Linux, ImageMagick uses width first:
 
 ```bash
 convert input.png -resize 1600x900! output.png
 ```
 
+## Transparent PNG validation
+
+GPT Image 2 supports transparent backgrounds in preview. Ask the built-in image-generation tool for genuine transparency and preserve the alpha channel. Include these requirements in the brief:
+
+```text
+Background: genuinely transparent with a real alpha channel.
+Constraints: fully transparent canvas corners; smooth anti-aliased edge alpha.
+Avoid: checkerboard pattern, white or colored matte, floor plane, cast shadow, or reflection.
+```
+
+Validate the returned PNG before copying it into the project:
+
+```bash
+python3 "<SKILL_DIR>/scripts/verify_png_alpha.py" \
+  --require-transparent-corners "$SRC"
+```
+
+The validator uses only the Python standard library. It verifies PNG chunk CRCs, decodes non-interlaced 8-bit gray-alpha or RGBA scanlines, requires alpha extrema of 0 and 255, optionally requires four transparent corners, and reports transparent, partial, and opaque pixel counts.
+
+If validation fails, retry once with the full transparent-output brief. Never substitute a painted checkerboard, white background, or unverified post-processing result.
+
 ## Size rules
 
-gpt-image-2 size constraints are deterministic:
+GPT Image 2 size constraints are deterministic:
 
 - both edges are multiples of 16;
 - maximum edge is 3840;
@@ -100,87 +106,39 @@ gpt-image-2 size constraints are deterministic:
 
 A 256×256 request is below the pixel floor. Generate a valid 1024×1024 source and downscale. Common valid sizes include 1024×1024, 1536×1024, 1024×1536, 2048×2048, 2048×1152, 3840×2160, and 2160×3840.
 
-## Host-run bundled Image API CLI
-
-Codex ships `image_gen.py` in its system image-generation skill. The host can run it directly when `OPENAI_API_KEY` is already configured:
-
-```bash
-python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/imagegen/scripts/image_gen.py" \
-  generate --prompt-file "<PROMPT_FILE>" --out ./output.png
-```
-
-Subcommands are `generate`, `edit`, and `generate-batch`. Defaults are model `gpt-image-2`, size `auto`, quality `medium`, and PNG output. `--dry-run` prints the API payload without a network request.
-
-Key flags:
-
-- `--quality low|medium|high|auto`
-- `--size WxH`
-- `--background transparent` for gpt-image-1.5 only, with PNG or WebP
-- `--input-fidelity low|high` for eligible edit models; not gpt-image-2
-- `--mask <png>` for the first edit image; same size and alpha required
-- repeatable `--image` for multi-image edits
-- `--n` for variants of one prompt
-- `--no-augment` to send the prompt verbatim
-- `--prompt-file`, `--output-compression`, `--moderation`, `--max-attempts`, `--fail-fast`, `--force`, `--downscale-max-dim`, and `--out-dir`
-
-Batch example:
-
-```bash
-python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/imagegen/scripts/image_gen.py" \
-  generate-batch --input prompts.jsonl --out-dir ./out --concurrency 5
-```
-
-JSONL uses one job per line. Each job may override `prompt`, `size`, `quality`, `background`, `output_format`, `n`, `model`, and `out`.
-
-## Chroma-key helper
-
-Codex also ships `remove_chroma_key.py`. Run it on a flat-key generation:
-
-```bash
-python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/imagegen/scripts/remove_chroma_key.py" \
-  --input "$SRC" --out ./asset.png \
-  --auto-key border --soft-matte \
-  --transparent-threshold 12 --opaque-threshold 220 --despill
-```
-
-Useful flags include `--key-color`, `--tolerance`, `--auto-key none|corners|border`, `--soft-matte`, `--transparent-threshold`, `--opaque-threshold`, `--edge-feather`, `--edge-contract`, `--despill`, and `--force`.
-
-Validate RGBA mode, alpha extrema containing 0 and 255, transparent corners, and no key-color fringe. Try `--edge-contract 1` for a thin fringe. Hard tolerance-only removal is appropriate only for flat pixel art.
-
 ## Cost and limits
 
 - A Codex subscription image turn consumes materially more quota than a text turn. Report any reset time from a usage-limit error.
-- The host-run CLI uses per-image API billing. Confirm the user wants this path before switching when they did not already request it.
-- gpt-image-2 has no native transparent background. Use chroma-key removal or gpt-image-1.5 native alpha.
-- Quality, masks, and fidelity controls are not available through the Codex subscription image tool.
-- No seed control is exposed. Iterate with change-X/preserve-Y rather than rerolling blindly.
+- This skill never switches to direct API billing and never reads or forwards API credentials.
+- Quality, masks, and fidelity are not launcher parameters.
+- No seed control is exposed. Iterate with change-X/preserve-Y instead of rerolling blindly.
 
 ## Troubleshooting
 
-### Codex CLI missing
+### Codex CLI missing or too old
 
-Install with `npm i -g @openai/codex`.
+Install or upgrade with `npm i -g @openai/codex`, then require version 0.149.0 or newer.
 
 ### Authentication required
 
-Ask the user to run `codex login` directly.
+Ask the user to run `codex login` directly. Never request credentials in chat.
 
-### Launcher rejects the prompt
+### Launcher rejects the prompt or attachment
 
-Use a readable, non-empty UTF-8 file containing the literal `$imagegen`.
+Use a readable, non-symlink UTF-8 prompt file containing `$imagegen`. Attach only genuine PNG, JPEG, or WebP files within the size limit.
 
 ### Launcher times out
 
-The default is 300 seconds. Retry only when the generation was clearly still progressing; never weaken the sandbox. An explicit `--timeout` value may increase the bound.
+The default is 300 seconds. Retry only when generation was clearly still progressing. Never weaken the sandbox or re-enable disabled tools.
 
-### Launcher rejects the result path
+### Launcher rejects the structured result
 
-Codex did not return an existing PNG inside the configured generated-images root. Do not copy a different agent-provided path. Inspect stderr and rerun once.
+Codex did not return a schema-valid existing PNG inside the generated-images root. Do not copy another agent-provided path. Rerun once with the same restrictions.
+
+### Transparent output is opaque
+
+Restate genuine alpha, fully transparent corners, no matte, and no checkerboard. Retry once, then run `verify_png_alpha.py` again. Report failure if the second result is still opaque.
 
 ### Output is off-style
 
 Fill every schema slot, replace empty adjectives, specify exact text and layout, and iterate with one change while restating all invariants.
-
-### Transparent output is opaque
-
-Run the chroma-key removal helper and verify alpha. If the subject has complex semi-transparent edges, use the host-run gpt-image-1.5 native-alpha path.

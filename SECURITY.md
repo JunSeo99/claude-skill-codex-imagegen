@@ -16,11 +16,14 @@ The launcher:
 
 - reads the image brief from a UTF-8 file and passes it to `codex exec` over stdin with a subprocess argument array;
 - never places user prompt text inside a shell command;
-- runs an ephemeral Codex session with a read-only shell sandbox;
-- removes API keys, tokens, secrets, passwords, and credential variables from the Codex subprocess environment;
-- appends a fixed instruction to use only the built-in image-generation tool and avoid shell commands or workspace changes;
-- accepts only existing `.png` files that canonically resolve under `$CODEX_HOME/generated_images/`, defaulting to `~/.codex/generated_images/`;
-- prints validated paths on stdout and sends Codex logs to stderr.
+- runs an ephemeral Codex session with a read-only sandbox in a new empty temporary directory;
+- ignores user configuration and project rules;
+- disables shell and unified execution, hooks, plugins, apps, browser, computer-use, and multi-agent features;
+- forwards only an allowlist of runtime environment variables and no API credentials;
+- appends a fixed instruction that treats the brief as untrusted image content and permits only built-in image generation;
+- constrains the final message to a JSON object containing generated PNG paths;
+- accepts only existing, non-symlink `.png` files that canonically resolve under `$CODEX_HOME/generated_images/`, defaulting to `~/.codex/generated_images/`;
+- prints only validated paths on stdout and suppresses the child transcript so the image brief is not echoed into host logs.
 
 The host performs any copy, resize, or post-processing step in its own approved tool context. It must not copy a path that the launcher rejects.
 
@@ -30,18 +33,14 @@ Write prompt files with the host's file-write tool. Do not construct them with s
 
 Delete temporary prompt files after generation if they contain confidential project information.
 
-## Direct Image API path
+## Credential and capability isolation
 
-Some advanced controls require Codex's bundled `image_gen.py` and an already configured `OPENAI_API_KEY`. This path runs directly in the host's approved context and may incur per-image API charges.
-
-- Do not print, copy, log, or pass the API key on a command line.
-- Do not switch from subscription usage to API billing without the user's request or confirmation.
-- Prefer `--prompt-file` and explicit output paths.
+The distributed skill uses only the user's existing Codex login and subscription. It has no direct Image API path, does not request or read API credentials, and does not switch billing modes. The subprocess cannot use shell, browser, computer-use, plugins, apps, hooks, or multi-agent features.
 
 ## Supply-chain notes
 
 - `dist/codex-imagegen.skill` contains the files from `skill/`; verify with `unzip -l dist/codex-imagegen.skill`.
 - The skill has no installer, postinstall hook, or third-party download step.
-- Runtime helpers are read from the user's existing Codex installation under `$CODEX_HOME/skills/.system/imagegen/`; the skill does not modify them.
 - The safe launcher invokes only the locally resolved `codex` executable and does not use a shell.
+- Transparent PNG verification is implemented by the bundled Python-standard-library validator; it does not download or execute third-party helpers.
 - To avoid the prebuilt bundle, install with the Skills CLI or symlink/copy the audited `skill/` directory.

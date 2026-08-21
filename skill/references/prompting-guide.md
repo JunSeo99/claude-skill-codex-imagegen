@@ -1,6 +1,6 @@
 # gpt-image-2 Prompting Guide
 
-Read this before complex images, images containing text, people, or edit operations. Based on OpenAI's GPT Image prompting guide, the Codex CLI built-in imagegen skill (v0.144), and direct verification against session logs.
+Read this before complex images, images containing text, people, or edit operations. Based on OpenAI's GPT Image prompting guide, the Codex CLI built-in imagegen skill (v0.149), and direct verification against session logs.
 
 ## Table of contents
 
@@ -53,7 +53,7 @@ Avoid: <bans: watermark, logo, extra text, border, ...>
 
 The old six-slot mental model (Art direction → Scene → Subject → Details → Use case → Constraints) maps 1:1 onto this — the schema is just its Codex-native serialization. `Style/medium` carries the art direction; `Constraints`/`Avoid` are where mediocre prompts fail silently: leave them empty and watermarks, logos, and stray text show up.
 
-If you need the model to see your exact words with **zero** rewriting, the only true bypass is the host-run bundled CLI with `--no-augment` (see `cli-reference.md`).
+The subscription path does not expose a verbatim/no-rewrite mode. Make constraints explicit and inspect the final image instead of assuming the intermediate prompt is preserved word for word.
 
 ## 3. The first-50-words rule
 
@@ -91,7 +91,7 @@ gpt-image-2 renders in-image text reliably (including non-Latin scripts), but it
 - State typography: weight, size relative to image, placement, contrast (`black text on matte white, unobstructed`)
 - Spell tricky words (brand names, proper nouns) **letter-by-letter**: `the word "InSeoul" (I-n-S-e-o-u-l)`
 - **Always include**: `appears exactly once`, `no extra text`, `no duplicate text`, `no captions`
-- Small text, dense labels, infographics, menus, packaging, multi-font layouts: quality matters, and quality is **CLI-only** — route via the host-run bundled CLI with `--quality high` (see §9). Prose "use quality high" on the built-in path does nothing.
+- Small text, dense labels, infographics, menus, packaging, and multi-font layouts remain fragile. Prefer short labels or overlay production typography in HTML/SVG after generation. Prose such as "use quality high" is not a launcher control.
 - If the first result is almost right, iterate with only text/layout corrections; do not rewrite the whole art direction.
 
 ## 6. People and photorealism
@@ -103,7 +103,7 @@ Write a real photo brief, not a subject label.
 - Specify gaze and action: `looking down at the open book, not at camera`.
 - Demand real texture and imperfections: pores, wrinkles, flyaway hair, worn fabric, uneven daylight.
 - Block glamor defaults: `honest and unposed, no heavy retouching, no plastic skin, no extra fingers`.
-- Close-up portraits and identity-sensitive edits benefit from the host-run CLI with `--quality high`.
+- Close-up portraits and identity-sensitive edits benefit from an attached anchor image and repeated identity invariants.
 
 **Good**:
 ```
@@ -147,14 +147,14 @@ The GPT Image family accepts multiple input images (up to 16 in edit workflows).
 
 ## 9. Size, aspect, quality — what is actually controllable
 
-Two execution paths with different control surfaces (see SKILL.md truth table):
+The sandboxed subscription path intentionally exposes a small control surface (see SKILL.md truth table):
 
-| Lever | Sandboxed Codex subscription path | Host-run bundled CLI (`OPENAI_API_KEY`) |
-|---|---|---|
-| `quality` | not a parameter — accept default | `--quality low\|medium\|high\|auto` |
-| exact size | prompt "exactly WxH" → agent downscales after generation | `--size WxH` within constraints |
-| `background` transparency | chroma-key + local removal | `gpt-image-1.5 --background transparent` only |
-| `input_fidelity` | n/a | edit-only; **not supported for gpt-image-2** (always high) |
+| Lever | Behavior |
+|---|---|
+| `quality` | not a launcher parameter — describe the intended finish and visually verify |
+| exact size | generate at a valid size, then resize in the host context |
+| transparent background | request genuine alpha, then run `verify_png_alpha.py` |
+| `input_fidelity` | not a launcher parameter — attach a role-labeled anchor image and repeat invariants |
 
 **gpt-image-2 size constraints** (deterministic): edges multiples of 16; max edge 3840; long:short ratio ≤ 3:1; **total pixels 655,360–8,294,400**; above 2560×1440 is experimental. A 256×256 icon request is below the pixel floor — that's why it comes back ~1254×1254, not because size adherence is "loose". Generate valid (e.g. 1024×1024) and downscale.
 
@@ -165,7 +165,7 @@ Recommended sizes by use case:
 - **Mobile portrait**: 1024×1536 · **Square**: 1024×1024 · **2K**: 2048×2048 / 2048×1152 · **4K**: 3840×2160
 - **Format**: PNG default; JPEG for photos (smaller/faster); WebP supported
 
-Quality guidance (CLI path): `low` for drafts and thumbnails; `medium`/`high`/`auto` for final assets, dense text, diagrams, identity-sensitive edits, high-resolution outputs. For production volume, "low + dedicated upscaler" is often cheaper and more reliable than native high-res.
+For final assets, inspect the generated pixels and iterate with one targeted change. For small output sizes, generate at a valid size and downscale after acceptance.
 
 ## 10. Anti-patterns
 
@@ -179,7 +179,7 @@ Quality guidance (CLI path): `low` for drafts and thumbnails; `medium`/`high`/`a
 | Omitting Constraints/Avoid | Watermarks, stray text, drift | Always ban watermark/extra text; always list preserve set on edits |
 | `a person smiling at a desk` | Pose, hands, gaze, skin all default | Crop, framing, gaze, hands, object contact, texture, retouching limits |
 | Exact text without typography/layout | Text renders but placement/hierarchy is weak | Quoted copy + "appears exactly once" + font/size/placement/contrast |
-| "use quality high" in a built-in-path prompt | Quality is not a built-in parameter — silent no-op | Route via host-run bundled CLI `--quality high` |
+| "use quality high" in a built-in-path prompt | Quality is not a launcher parameter — silent no-op | Specify concrete finish, materials, lighting, and edge requirements; visually verify |
 | Ten changes in one prompt | Output destabilizes | One change per pass, preserve list restated |
 | Pure negation (`not blue`, `no cats`) | Negation is weakly applied | Positive rephrase: `warm orange tones`, `dogs only` |
 | "same style as before/reference" | Style is not named, so it drifts | Name the style's parts: palette, forms, edges, texture |
