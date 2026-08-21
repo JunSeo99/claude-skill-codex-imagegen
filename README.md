@@ -1,7 +1,7 @@
 # claude-skill-codex-imagegen
+[![skills.sh](https://skills.sh/b/JunSeo99/claude-skill-codex-imagegen)](https://skills.sh/JunSeo99/claude-skill-codex-imagegen)
 
 **Use OpenAI's [gpt-image-2](https://developers.openai.com/api/docs/models/gpt-image-2) — OpenAI's most capable image generation model — from inside [Claude Code](https://docs.claude.com/en/docs/claude-code).**
-[![skills.sh](https://skills.sh/b/JunSeo99/claude-skill-codex-imagegen)](https://skills.sh/JunSeo99/claude-skill-codex-imagegen)
 🌐 **English** · [한국어](./README.ko.md) · [日本語](./README.ja.md) · [简体中文](./README.zh-CN.md)
 
 ---
