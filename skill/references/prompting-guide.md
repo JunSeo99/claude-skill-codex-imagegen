@@ -1,6 +1,6 @@
 # gpt-image-2 Prompting Guide
 
-Read this before complex images, images containing text, people, or edit operations. Based on OpenAI's GPT Image prompting guide, the Codex CLI built-in imagegen skill (v0.149), and direct verification against session logs.
+Read this before complex images, images containing text, people, or edit operations. Based on OpenAI's GPT Image prompting guide, the Codex CLI built-in imagegen skill (verified on codex-cli 0.153.2), and direct verification against session logs.
 
 ## Table of contents
 
@@ -21,7 +21,7 @@ Read this before complex images, images containing text, people, or edit operati
 
 ## 1. How the Codex agent reprocesses your prompt
 
-Verified in session logs: the prompt you pass to `codex exec '$imagegen ...'` is rewritten by the Codex agent before it reaches gpt-image-2. The `revised_prompt` actually sent to the model is a restructured, labeled spec — the agent's own schema — with your details slotted in and constraints tightened.
+Verified in session logs: the brief the launcher sends to `codex exec` is rewritten by the Codex agent before it reaches gpt-image-2. The `revised_prompt` actually sent to the model is a restructured, labeled spec — the agent's own schema — with your details slotted in and constraints tightened.
 
 The agent's rewrite policy (its "specificity policy"):
 
@@ -141,7 +141,8 @@ The GPT Image family accepts multiple input images (up to 16 in edit workflows).
 
 - **Label every input by index and role**: `Image 1: base scene to edit — preserve framing; Image 2: jacket style reference only, do not copy content`.
 - Describe the interaction explicitly: `place the subject from Image 2 into Image 1`, `apply Image 2's palette to Image 1`.
-- `-i` order is meaningful; in CLI edit mode, a `--mask` applies to the first image only (mask must be same size, with alpha).
+- `--image` order is meaningful and must match the index labels in the prompt. Masks are not exposed on this path; describe the edit region in words instead.
+- Edits of a transparent cutout come back opaque (verified on 0.153.2); regenerate transparent assets from an updated brief rather than editing them.
 - **Style transfer**: don't say "same style as the reference" — name the style's visual parts (`chunky pixel forms, limited arcade palette, clean silhouette edges`).
 - **Character consistency across a set**: the first accepted image is the anchor. Attach it (`Image 1: character reference — keep identity exactly`) and repeat the identity details verbatim in every prompt: `same face, same green hooded tunic, same proportions, same palette`. Consistency comes from repetition, not memory.
 
@@ -152,20 +153,21 @@ The sandboxed subscription path intentionally exposes a small control surface (s
 | Lever | Behavior |
 |---|---|
 | `quality` | not a launcher parameter — describe the intended finish and visually verify |
-| exact size | generate at a valid size, then resize in the host context |
+| exact size | not controllable — the built-in tool renders ≈1.57 MP at the brief's aspect ratio; state the aspect ratio, then resize in the host context |
 | transparent background | request genuine alpha, then run `verify_png_alpha.py` |
 | `input_fidelity` | not a launcher parameter — attach a role-labeled anchor image and repeat invariants |
 
-**gpt-image-2 size constraints** (deterministic): edges multiples of 16; max edge 3840; long:short ratio ≤ 3:1; **total pixels 655,360–8,294,400**; above 2560×1440 is experimental. A 256×256 icon request is below the pixel floor — that's why it comes back ~1254×1254, not because size adherence is "loose". Generate valid (e.g. 1024×1024) and downscale.
+**Built-in output size is fixed area, not requested pixels.** The tool renders every image at ≈1.57 megapixels and reads only the aspect ratio from the brief (verified on 0.153.2 across 393 outputs: 1:1 → 1254×1254, 3:2 → 1536×1024, 16:9 → 1672×941, 1.91:1 → 1730×909, 3:1 → 2048×768). "256×256" and "1024×1024" both come back as 1254×1254 — that is not loose size adherence, it is the only square size this path produces. The Images API constraints (multiples of 16, 655,360-pixel floor) apply to the API `size` parameter, not to this path.
 
-Recommended sizes by use case:
-- **App icon**: generate 1024×1024, downscale to target
-- **OG / social card**: 1200×630 (630 is not a multiple of 16 — generate 1216×640 and crop, or let the agent handle it via "exactly 1200x630")
-- **Blog header**: 1600×900 (same note — agent resizes)
-- **Mobile portrait**: 1024×1536 · **Square**: 1024×1024 · **2K**: 2048×2048 / 2048×1152 · **4K**: 3840×2160
-- **Format**: PNG default; JPEG for photos (smaller/faster); WebP supported
+Write the aspect ratio in `Asset type`, then resize on the host:
+- **App icon / favicon**: "1:1 square" → 1254×1254 → `sips -z 512 512`
+- **OG / social card**: "1.91:1 landscape OG card" → ~1730×909 → `sips -z 630 1200`
+- **Blog header / hero**: "16:9 landscape" → 1672×941 → `sips -z 900 1600`
+- **Mobile portrait**: "2:3 portrait" or "9:16 portrait" → 1024×1536 or 941×1672
+- **Wide banner**: "3:1" → 2048×768; wider ratios have not been observed — crop on the host
+- **Format**: the tool returns PNG; convert to JPEG/WebP on the host if needed
 
-For final assets, inspect the generated pixels and iterate with one targeted change. For small output sizes, generate at a valid size and downscale after acceptance.
+For final assets, inspect the generated pixels and iterate with one targeted change; resize only after acceptance.
 
 ## 10. Anti-patterns
 
@@ -192,7 +194,7 @@ gpt-image-2 renders Korean well, but it breaks more often than English.
 - If you see decomposed jamo: add `Korean text rendered as complete Hangul syllables, no decomposed jamo`
 - Typeface hint works: `in a Pretendard-like sans-serif Korean typeface`
 - Keep Korean text ≥ 5% of image height — small Hangul breaks first
-- Dense Korean labels (menus, infographics) → CLI `--quality high`
+- Dense Korean labels (menus, infographics) → keep labels short, or overlay production typography in HTML/SVG after generation (no quality control is exposed on this path)
 
 ## 12. Before/After examples
 
@@ -200,13 +202,13 @@ gpt-image-2 renders Korean well, but it breaks more often than English.
 
 **Bad**: `make an icon of a seedling, cute, simple`
 
-**Good**: see "Standard generation" recipe in SKILL.md — every schema slot filled, no empty adjectives, valid generation size with exact-size downscale instruction.
+**Good**: every schema slot filled, no empty adjectives, "1:1 square" stated in `Asset type`, exact-size downscale performed on the host after acceptance.
 
 ### Example 2 — OG image
 
 **Bad**: `make me an OG image for my SaaS, modern and clean`
 
-**Good**: see "OG image (with Korean text)" recipe in SKILL.md — verbatim text blocks with `appears exactly once`, named palette, placement percentages, Hangul guard.
+**Good**: "1.91:1 landscape OG card" in `Asset type`, verbatim text blocks with `appears exactly once`, named palette, placement percentages, Hangul guard, then `sips -z 630 1200` on the host.
 
 ### Example 3 — photo edit
 

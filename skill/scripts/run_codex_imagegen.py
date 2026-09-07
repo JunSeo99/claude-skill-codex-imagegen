@@ -15,6 +15,8 @@ import tempfile
 
 MAX_PROMPT_BYTES = 64 * 1024
 MAX_IMAGE_BYTES = 50 * 1024 * 1024
+MAX_ERROR_MESSAGE_CHARS = 300
+MODEL_NOT_SUPPORTED_MARKER = "model is not supported"
 SAFE_ENV_NAMES = frozenset(
     {
         "CODEX_HOME",
@@ -62,12 +64,27 @@ def parse_args() -> argparse.Namespace:
         help="Reference or source image to attach; repeat for multiple images",
     )
     parser.add_argument(
+        "--model",
+        help=(
+            "Codex relay model slug passed as `-m`; if the account rejects the slug, "
+            "the launcher retries once with the account default model"
+        ),
+    )
+    parser.add_argument(
+        "--reasoning-effort",
+        help="Reasoning effort for the relay model, passed as `-c model_reasoning_effort`",
+    )
+    parser.add_argument(
         "--timeout",
         type=int,
         default=300,
         help="Maximum Codex runtime in seconds (default: 300)",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    for name, value in (("--model", args.model), ("--reasoning-effort", args.reasoning_effort)):
+        if value is not None and (not value.strip() or any(c in value for c in '"\\\n\r')):
+            parser.error(f"{name} must be a non-empty single-line value without quotes")
+    return args
 
 
 def fail(message: str, exit_code: int = 2) -> None:
@@ -134,6 +151,39 @@ def resolve_images(path_texts: list[str]) -> list[Path]:
 
 def sanitized_environment() -> dict[str, str]:
     return {name: value for name, value in os.environ.items() if name in SAFE_ENV_NAMES}
+
+
+def model_arguments(model: str | None, reasoning_effort: str | None) -> list[str]:
+    arguments: list[str] = []
+    if model:
+        arguments.extend(["-m", model])
+    if reasoning_effort:
+        arguments.extend(["-c", f'model_reasoning_effort="{reasoning_effort}"'])
+    return arguments
+
+
+def codex_error_message(stderr_text: str) -> str:
+    """Return the API error message from Codex's `ERROR: {json}` lines, or an empty string.
+
+    Only the structured `error.message` field is returned, never the transcript, so the image
+    brief that Codex echoes on stderr is not forwarded into host logs.
+    """
+    for line in stderr_text.splitlines():
+        if not line.startswith("ERROR: {"):
+            continue
+        try:
+            payload = json.loads(line[len("ERROR: ") :])
+        except json.JSONDecodeError:
+            continue
+        error = payload.get("error") if isinstance(payload, dict) else None
+        message = error.get("message") if isinstance(error, dict) else None
+        if isinstance(message, str) and message.strip():
+            return " ".join(message.split())[:MAX_ERROR_MESSAGE_CHARS]
+    return ""
+
+
+def model_was_rejected(stderr_text: str) -> bool:
+    return MODEL_NOT_SUPPORTED_MARKER in codex_error_message(stderr_text)
 
 
 def extract_generated_paths(text: str, generated_root: Path) -> list[Path]:
@@ -230,27 +280,43 @@ def main() -> None:
         ]
         for image in images:
             command.extend(["--image", str(image)])
-        command.append("-")
+        # `--image` is variadic, so `--` keeps the trailing `-` (read the prompt from stdin)
+        # from being consumed as another image path.
+        command.extend(["--", "-"])
 
-        try:
-            completed = subprocess.run(
-                command,
-                input=prompt,
-                text=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=args.timeout,
-                check=False,
-                env=sanitized_environment(),
-                cwd=temp_root,
-            )
-        except subprocess.TimeoutExpired:
-            fail(f"codex timed out after {args.timeout} seconds", exit_code=124)
-        except OSError as error:
-            fail(f"could not start codex: {error}", exit_code=126)
+        attempts = [model_arguments(args.model, args.reasoning_effort)]
+        if attempts[0]:
+            attempts.append([])
+        for index, model_args in enumerate(attempts):
+            try:
+                completed = subprocess.run(
+                    command[:2] + model_args + command[2:],
+                    input=prompt,
+                    text=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                    timeout=args.timeout,
+                    check=False,
+                    env=sanitized_environment(),
+                    cwd=temp_root,
+                )
+            except subprocess.TimeoutExpired:
+                fail(f"codex timed out after {args.timeout} seconds", exit_code=124)
+            except OSError as error:
+                fail(f"could not start codex: {error}", exit_code=126)
 
-        if completed.returncode != 0:
-            fail(f"codex exited with status {completed.returncode}", completed.returncode)
+            if completed.returncode == 0:
+                break
+            if model_args and index + 1 < len(attempts) and model_was_rejected(completed.stderr):
+                print(
+                    f"run_codex_imagegen.py: model {args.model!r} is not available on this "
+                    "account; retrying with the account default model",
+                    file=sys.stderr,
+                )
+                continue
+            detail = codex_error_message(completed.stderr)
+            suffix = f": {detail}" if detail else ""
+            fail(f"codex exited with status {completed.returncode}{suffix}", completed.returncode)
 
         if not last_message.is_file():
             fail("codex did not write the structured result file")

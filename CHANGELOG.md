@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2026-09-07
+
+### Added
+
+- `run_codex_imagegen.py`: optional `--model` and `--reasoning-effort` relay-model controls (`-m` / `-c model_reasoning_effort`), with one automatic retry on the account default model when Codex rejects the slug; the skill runs the relay on the lightest listed model because Codex usage limits are shared and drawn down at model-specific rates.
+- Documented the measured relay-model comparison on codex-cli 0.153.2 (tokens unchanged, 5-hour meter about 2% per image on GPT-6 Astra versus 0–1% on GPT-5.6 Luna, identical image quality).
+- Failure diagnostics: the launcher now reports the `error.message` field from Codex's structured `ERROR:` line (usage-limit reset time, unsupported model or effort) while still suppressing the transcript.
+
+### Changed
+
+- Corrected size guidance: the built-in image tool has no size parameter and renders ≈1.57 megapixels at the aspect ratio read from the brief (393 outputs observed); briefs state the aspect ratio and the host resizes. The Images API `size` constraints no longer appear as built-in behavior.
+- Raised the verified Codex CLI baseline to 0.153.2 (minimum remains 0.149.0); re-verified native transparent output through the launcher with the light relay model.
+- Documented that built-in edits of transparent images return opaque PNGs; regenerate instead of editing.
+- Terminated the `codex exec` option list with `--` so the variadic `--image` option cannot consume the stdin prompt marker.
+- Removed remaining references to CLI-only `--quality` and `--mask` controls that this skill does not expose.
+
 ## [0.2.2] - 2026-08-21
 
 ### Added

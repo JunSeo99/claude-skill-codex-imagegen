@@ -142,9 +142,95 @@ class LauncherBoundaryTests(unittest.TestCase):
             '"computer_use"',
             '"multi_agent"',
             '"--output-schema"',
+            '["--", "-"]',
         ):
             self.assertIn(required, source)
         self.assertNotIn("shell" + "=True", source)
+
+    def test_model_arguments(self) -> None:
+        self.assertEqual(RUNNER.model_arguments(None, None), [])
+        self.assertEqual(RUNNER.model_arguments("gpt-5.6-luna", None), ["-m", "gpt-5.6-luna"])
+        self.assertEqual(
+            RUNNER.model_arguments("gpt-5.6-luna", "none"),
+            ["-m", "gpt-5.6-luna", "-c", 'model_reasoning_effort="none"'],
+        )
+
+    def test_codex_error_message_reads_only_the_structured_error(self) -> None:
+        stderr = "\n".join(
+            (
+                "model: bogus-model",
+                "user",
+                "$imagegen secret brief line that must never be echoed",
+                "warning: Model metadata for `bogus-model` not found.",
+                'ERROR: {"type":"error","status":400,"error":{"type":"invalid_request_error",'
+                '"message":"The \'bogus-model\' model is not supported when using Codex with a ChatGPT account."}}',
+            )
+        )
+        message = RUNNER.codex_error_message(stderr)
+        self.assertEqual(
+            message,
+            "The 'bogus-model' model is not supported when using Codex with a ChatGPT account.",
+        )
+        self.assertNotIn("secret brief", message)
+        self.assertTrue(RUNNER.model_was_rejected(stderr))
+        self.assertFalse(RUNNER.model_was_rejected("user\n$imagegen brief\nERROR: not json"))
+        self.assertEqual(RUNNER.codex_error_message("plain failure text"), "")
+        long_message = json.dumps({"error": {"message": "x" * 1000}})
+        self.assertEqual(len(RUNNER.codex_error_message(f"ERROR: {long_message}")), RUNNER.MAX_ERROR_MESSAGE_CHARS)
+
+    def test_launcher_retries_once_on_default_model_when_slug_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            codex_home = Path(temp_dir) / "codex-home"
+            trusted = codex_home / "generated_images" / "session" / "exec-1.png"
+            trusted.parent.mkdir(parents=True)
+            write_rgba_png(trusted, 2, 2, [(0, 0, 0, 0), (0, 0, 0, 255)] * 2)
+            prompt_file = Path(temp_dir) / "brief.txt"
+            prompt_file.write_text("$imagegen\nUse case: test\n", encoding="utf-8")
+
+            commands: list[list[str]] = []
+
+            def fake_run(command, **kwargs):
+                commands.append(list(command))
+                if "-m" in command:
+                    return subprocess.CompletedProcess(
+                        command,
+                        1,
+                        stderr='ERROR: {"error":{"message":"The \'gpt-old\' model is not supported when using Codex with a ChatGPT account."}}',
+                    )
+                last_message = Path(command[command.index("--output-last-message") + 1])
+                last_message.write_text(json.dumps({"generated_png_paths": [str(trusted)]}), encoding="utf-8")
+                return subprocess.CompletedProcess(command, 0, stderr="")
+
+            argv = [
+                "run_codex_imagegen.py",
+                "--prompt-file",
+                str(prompt_file),
+                "--model",
+                "gpt-old",
+                "--reasoning-effort",
+                "none",
+            ]
+            with mock.patch.dict(os.environ, {"CODEX_HOME": str(codex_home), "PATH": "/usr/bin"}, clear=True), \
+                mock.patch.object(RUNNER.shutil, "which", return_value="/usr/bin/codex"), \
+                mock.patch.object(RUNNER.subprocess, "run", side_effect=fake_run), \
+                mock.patch.object(sys, "argv", argv), \
+                mock.patch("sys.stdout") as stdout, \
+                mock.patch("sys.stderr") as stderr:
+                RUNNER.main()
+
+            self.assertEqual(len(commands), 2)
+            self.assertEqual(commands[0][:2], ["/usr/bin/codex", "exec"])
+            self.assertEqual(commands[0][2:6], ["-m", "gpt-old", "-c", 'model_reasoning_effort="none"'])
+            self.assertNotIn("-m", commands[1])
+            self.assertNotIn("-c", commands[1])
+            for command in commands:
+                self.assertEqual(command[-2:], ["--", "-"])
+                self.assertIn("--ignore-user-config", command)
+            printed = "".join(call.args[0] for call in stdout.write.call_args_list)
+            self.assertEqual(printed.strip(), str(trusted.resolve()))
+            notices = "".join(call.args[0] for call in stderr.write.call_args_list)
+            self.assertIn("retrying with the account default model", notices)
+            self.assertNotIn("Use case: test", notices)
 
 
 class RepositoryTests(unittest.TestCase):
@@ -203,6 +289,21 @@ class RepositoryTests(unittest.TestCase):
                 if not name.endswith("/")
             }
         self.assertEqual(actual, expected)
+
+    def test_docs_describe_built_in_size_and_verified_baseline(self) -> None:
+        skill_md = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+        cli_reference = (SKILL / "references" / "cli-reference.md").read_text(encoding="utf-8")
+        prompting_guide = (SKILL / "references" / "prompting-guide.md").read_text(encoding="utf-8")
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        for text in (skill_md, cli_reference, prompting_guide, readme):
+            self.assertIn("1.57", text)
+        for text in (skill_md, cli_reference, readme):
+            self.assertIn("0.153.2", text)
+            self.assertIn("--model", text)
+        for phrase in ("655,360", "multiples of 16", "valid size"):
+            self.assertNotIn(phrase, skill_md)
+        for phrase in ("`--quality", "`--mask"):
+            self.assertNotIn(phrase, prompting_guide)
 
     def test_readme_uses_skills_cli_and_cites_transparency(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

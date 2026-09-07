@@ -50,9 +50,10 @@ The skill bundles a verified prompting playbook, a CLI reference, a security not
 Claude Code can already drive the Codex CLI, but `$imagegen` has rough edges that Claude misses on its own:
 
 - **Your prompt gets rewritten before it reaches the model.** The Codex agent restructures every prompt into its internal labeled schema (verified via session logs), and *augments* vague prompts with its own taste. This skill writes prompts in that native schema directly, so nothing is lost or invented in translation.
-- **Size failures are deterministic, not random.** gpt-image-2 enforces a total-pixel floor of 655,360 (plus multiples-of-16 edges, ≤3:1 ratio) — that's why 256×256 comes back as 1254×1254. The skill generates at valid sizes and downscales on the host.
+- **Output size is a fixed area, not what you asked for.** The built-in tool renders every image at ≈1.57 megapixels and reads only the aspect ratio from the prompt — that's why both 256×256 and 1024×1024 come back as 1254×1254 (verified across 393 outputs on codex-cli 0.153.2). The skill states the aspect ratio in the brief and resizes to the exact size on the host.
 - **GPT Image 2 supports transparent backgrounds in preview.** The skill asks Codex for a genuinely transparent PNG, then runs a bundled dependency-free pixel validator that requires alpha values from 0 to 255 and, for cutouts, fully transparent corners. See the [official OpenAI image-generation guide](https://developers.openai.com/api/docs/guides/image-generation#customize-image-output).
 - **`quality`, masks, and `input_fidelity` are not launcher controls.** The skill keeps the subscription path intentionally small: specify the intended finish in the brief, attach role-labeled references, visually verify, and resize accepted outputs on the host.
+- **The Codex agent is only a relay, so it should be the cheapest one.** Codex subscription limits are one shared allowance drawn down at model-specific rates (Plus, per 5 hours: GPT-6 Astra 5–45 messages vs GPT-5.6 Luna 250–2,000). The launcher accepts `--model`/`--reasoning-effort`, the skill runs the relay on the lightest listed model, and it falls back to the account default automatically when a slug is not available.
 - The raw PNG lands under `~/.codex/generated_images/<session-uuid>/` — not where you asked
 - "Stunning, cinematic, 8K" keyword prompts produce visibly worse output than structured briefs — the skill enforces a schema-based prompt with concrete art direction
 - Passing a user prompt directly inside a shell command creates an injection boundary — the bundled launcher sends prompts over stdin, uses a read-only sandbox, and validates every returned PNG path before the host copies anything
@@ -80,6 +81,8 @@ The workflow it was originally built around is **solo developers shipping sites 
 
 On 2026-08-21, the repository's launcher invoked `codex-cli 0.149.0` → built-in `$imagegen` with the [recorded transparent-star prompt](tests/prompts/transparent-e2e.txt). The returned 1295×1214 file was a non-interlaced 8-bit RGBA PNG with alpha extrema **0–255**, **1,022,757 fully transparent pixels**, **548,590 partially transparent edge pixels**, and four corner alpha values of **0**. The committed fixture below is a 256-pixel downscale of that result; GitHub Actions decodes and revalidates its alpha channel on every push.
 
+Re-verified on 2026-09-07 with `codex-cli 0.153.2` and the light relay model (`--model gpt-5.6-luna --reasoning-effort none`): the same prompt returned a 1274×1235 RGBA PNG in 50 s with alpha extrema 0–255, 1,015,620 fully transparent pixels, 556,785 partially transparent pixels, and four corner alpha values of 0. An edit of that cutout through `--image` returned a valid path in 41 s but an opaque RGB PNG with a painted checkerboard, which the validator rejects — regenerate transparent assets instead of editing them.
+
 <p align="center">
   <img src="tests/fixtures/transparent-e2e.png" alt="Cobalt-blue five-point star generated through the sandboxed Claude-to-Codex launcher on a genuinely transparent canvas" width="180" />
 </p>
@@ -89,10 +92,10 @@ On 2026-08-21, the repository's launcher invoked `codex-cli 0.149.0` → built-i
 - macOS or Linux
 - Python 3.9 or newer (`python3`) for the bundled safe launcher
 - [Claude Code](https://docs.claude.com/en/docs/claude-code) — this skill is a filesystem skill loaded from `~/.claude/skills/`, which is a Claude Code feature (Claude.ai web uses a different skill upload mechanism)
-- [Codex CLI](https://developers.openai.com/codex/cli) v0.149 or newer (`npm i -g @openai/codex`) — the safe launcher relies on current tool-disable, config-isolation, and JSON-schema output controls
+- [Codex CLI](https://developers.openai.com/codex/cli) v0.149 or newer, verified on 0.153.2 (`npm i -g @openai/codex`) — the safe launcher relies on current tool-disable, config-isolation, and JSON-schema output controls
 - A logged-in Codex session (`codex login`) — uses your ChatGPT/Codex subscription
 
-Verified against `codex-cli 0.149.0` on macOS. `sips` ships with macOS; on Linux the skill can use ImageMagick `convert` for resizing.
+Verified against `codex-cli 0.153.2` on macOS. `sips` ships with macOS; on Linux the skill can use ImageMagick `convert` for resizing.
 
 ## Installation
 
@@ -153,7 +156,7 @@ Any request that produces a visual file saved to disk:
 >
 > **Claude**: *(invokes the skill, composes a prompt in Codex's native labeled schema, writes it to a temporary file, runs the bundled sandboxed launcher, validates the returned generated-image path, resizes it to `./assets/hero-icon.png`, then opens the file to verify it)*
 
-The launcher passes prompt content over stdin with no shell interpolation, runs Codex in an empty temporary directory, ignores local config and rules, disables every tool family except built-in image generation, constrains the final response with JSON Schema, and validates that every source PNG resolves inside `~/.codex/generated_images/` before the host copies or resizes it.
+The launcher passes prompt content over stdin with no shell interpolation, runs Codex in an empty temporary directory, ignores local config and rules, disables every tool family except built-in image generation, pins a light relay model (falling back to the account default if the slug is unavailable), constrains the final response with JSON Schema, and validates that every source PNG resolves inside `~/.codex/generated_images/` before the host copies or resizes it.
 
 For complex prompts (text in the image, photo edits, brand assets), Claude reads `references/prompting-guide.md` before generating to apply the structured prompt template and avoid known pitfalls.
 
@@ -232,15 +235,15 @@ Every slot left empty is a slot the Codex agent fills with its own taste — the
 
 ## Cost
 
-- Uses the logged-in Codex subscription and its current usage limits.
+- Uses the logged-in Codex subscription and its current usage limits. The relay model is chosen for limit weight, not capability: measured on 0.153.2, one image turn moved the 5-hour meter about 2% on GPT-6 Astra and 0–1% on GPT-5.6 Luna, with identical image quality.
 - Never switches to direct API billing and never reads or forwards API credentials.
 
 ## Known limitations of gpt-image-2
 
 | Limitation | Workaround the skill applies |
 |---|---|
-| Output size must satisfy hard constraints (multiples-of-16 edges, ≥655,360 total pixels, ≤3:1 ratio) | Generates at a valid size; host resizes with `sips -z H W` (macOS) or `convert -resize WxH!` (Linux) |
-| Transparent output is a preview capability and may occasionally miss the requested alpha | Requests genuine alpha and transparent corners, then decodes the PNG and requires alpha extrema 0–255; retries once on failure |
+| Output is always ≈1.57 megapixels at the prompt's aspect ratio; pixel dimensions in the prompt are ignored | States the aspect ratio in the brief; host resizes with `sips -z H W` (macOS) or `convert -resize WxH!` (Linux) |
+| Transparent output is a preview capability and may occasionally miss the requested alpha; edits of attached images return opaque PNGs | Requests genuine alpha and transparent corners, then decodes the PNG and requires alpha extrema 0–255; retries once on failure; regenerates instead of editing transparent assets |
 | `quality`/masks/`input_fidelity` are not launcher parameters | Uses concrete finish requirements, role-labeled reference images, visual verification, and host resizing |
 | Long multi-line text passages, brand names, and very small text in dense layouts still wobble (short labels and CJK render near-perfectly) | EXACT TEXT marker + double quotes for literal strings; letter-by-letter spelling for brand names; HTML/CSS overlay for paragraph-length text |
 | Latency up to 2 min on complex prompts | Launcher timeout defaults to 300 seconds |
@@ -250,7 +253,7 @@ Every slot left empty is a slot the Codex agent fills with its own taste — the
 
 | Component | Tested |
 |---|---|
-| `codex-cli` | 0.149.0 |
+| `codex-cli` | 0.153.2 (minimum 0.149.0) |
 | OS | macOS (Darwin 25.4.0); Linux untested but expected to work with ImageMagick fallback |
 | Claude Code | App / CLI (filesystem skills) |
 
