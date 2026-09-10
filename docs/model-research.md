@@ -15,6 +15,34 @@ On codex-cli 0.153.4, `codex exec --help` identifies `--model` as the agent mode
 
 Therefore this release has no image API path and no fake `--image-model` flag. Backend identity remains Codex-managed and unreported. Documentation knowledge is distinguished from verified runtime availability. We cannot promise a Flare-to-Sunburst switch during refinement through this transport.
 
+### Direct Codex response — 2026-09-10
+
+We also asked the actual subscription CLI, using the same lightweight relay and
+tool isolation as the launcher, to report its currently visible image-tool
+parameters without generating an image. This checks the agent-facing interface,
+rather than assuming the CLI help lists every tool argument.
+
+Codex reported `image_gen__imagegen` with these three parameters:
+
+| Parameter | Reported type |
+|---|---|
+| `prompt` | Required string |
+| `referenced_image_paths` | Optional nullable array of strings |
+| `num_last_images_to_include` | Optional nullable integer |
+
+It reported `supported_by_parameter: false` for both `gpt-image-2.5-flare` and
+`gpt-image-2.5-sunburst`. For natural-language selection, its exact response was:
+
+> Unknown; the visible tool description does not say that a natural-language model-name instruction selects the backend.
+
+The [full request and response](model-capability-probe.json) records CLI 0.153.4,
+Luna with reasoning `none`, and 2,810 reported tokens. This is Codex's account-local
+report of its exposed interface; it does not establish undocumented server routing
+behavior or future versions. We therefore keep the existing subscription-only
+implementation and do not add an inert model-selection flag. If a future probe
+exposes a real selector, use its exact parameter and accepted values. Do not run a
+capability interview before every image; check only when explicitly needed.
+
 ## Decisions for people using Claude Code
 
 - Clear brief: execute immediately, with no mandatory questionnaire.

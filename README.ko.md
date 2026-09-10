@@ -89,7 +89,7 @@ Claude가 인터뷰·기획·검수를 맡고, Codex에는 완성된 짧은 이�
 
 공식 문서는 [Flare](https://developers.openai.com/api/docs/models/gpt-image-2.5-flare)를 빠른 일상 생성용, [Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst)를 높은 품질과 정밀 편집용으로 소개합니다. 해당 특성과 편집·투명도 지침을 스킬에 반영했습니다.
 
-**현재 이 구독 경로에서 Flare/Sunburst를 강제 선택할 수는 없습니다.** `--model`은 이미지 모델이 아닌 텍스트 중계 모델 설정입니다. 지원하지 않는 선택 옵션이나 별도 과금 API 우회 경로는 제공하지 않습니다. [조사 기록](docs/model-research.md).
+**현재 이 구독 경로에서 Flare/Sunburst를 강제 선택할 수는 없습니다.** `--model`은 이미지 모델이 아닌 텍스트 중계 모델 설정입니다. [실제 Codex 응답](docs/model-capability-probe.json)에서도 이미지 모델 선택 파라미터가 없다고 확인했습니다. 자연어로 모델 이름을 지정했을 때의 효과는 알 수 없다고 답했습니다. 지원하지 않는 선택 옵션이나 별도 과금 API 우회 경로는 제공하지 않습니다. [조사 기록](docs/model-research.md).
 
 ## 확인할 수 있는 품질
 

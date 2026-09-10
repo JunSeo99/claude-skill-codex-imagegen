@@ -112,7 +112,7 @@ A local prompt-input check reduced **automatically injected context from 11,133 
 
 [Flare](https://developers.openai.com/api/docs/models/gpt-image-2.5-flare) is positioned for fast everyday generation. [Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst) targets demanding quality and precise edits. The skill's prompting and review guidance incorporates the new [official image guidance](https://developers.openai.com/api/docs/guides/image-generation).
 
-**This subscription path cannot currently pin Flare or Sunburst.** Codex manages the built-in image backend. `--model` chooses the lightweight text relay, not the image model. We do not substitute a separately billed API, invent a model selector, or label an unverified output as GPT Image 2.5. [Research and capability boundaries](docs/model-research.md).
+**This subscription path cannot currently pin Flare or Sunburst.** Codex manages the built-in image backend. `--model` chooses the lightweight text relay, not the image model. A [direct CLI probe](docs/model-capability-probe.json) also reported no image-model parameter; whether natural-language model names influence routing remains unknown. We do not substitute a separately billed API, invent a model selector, or label an unverified output as GPT Image 2.5. [Research and capability boundaries](docs/model-research.md).
 
 ## Quality you can inspect
 

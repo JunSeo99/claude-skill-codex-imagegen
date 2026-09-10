@@ -1,0 +1,42 @@
+{
+  "checked_on": "2026-09-10",
+  "codex_cli": "0.153.4",
+  "relay_model": "gpt-5.6-luna",
+  "reasoning_effort": "none",
+  "reported_tokens": 2810,
+  "method": "Asked the subscription CLI to report its currently visible tool interface. No image generation requested; no separately billed image API used.",
+  "configuration": "Ephemeral, empty working directory, read-only sandbox, user config and rules ignored, skills catalog and unrelated tool families disabled, as in the image launcher.",
+  "request": "Do not generate images or call any tools. Inspect only the image-generation tool interfaces ALREADY AVAILABLE in your current context. Report the exact tool name and every parameter name/type/enum exposed. Can a tool parameter select gpt-image-2.5-flare or gpt-image-2.5-sunburst? If yes, show a minimal illustrative argument object for each; DO NOT execute either. If no, say so. Do not infer support from remembered API documentation or putting a model name inside a prompt. Does the tool description say that a natural-language model-name instruction selects the backend, or is that unknown? Return concise JSON based on your visible tool schema, under 600 words.",
+  "response": {
+    "tools": [
+      {
+        "name": "image_gen__imagegen",
+        "parameters": {
+          "prompt": {
+            "type": "string",
+            "required": true
+          },
+          "referenced_image_paths": {
+            "type": "array<string>",
+            "required": false,
+            "nullable": true
+          },
+          "num_last_images_to_include": {
+            "type": "integer",
+            "required": false,
+            "nullable": true
+          }
+        }
+      }
+    ],
+    "model_selection": {
+      "gpt-image-2.5-flare": {
+        "supported_by_parameter": false
+      },
+      "gpt-image-2.5-sunburst": {
+        "supported_by_parameter": false
+      }
+    },
+    "natural_language_backend_selection": "Unknown; the visible tool description does not say that a natural-language model-name instruction selects the backend."
+  }
+}
