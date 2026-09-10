@@ -1,0 +1,6 @@
+$imagegen
+Asset: coffee brand campaign photograph, landscape 4:3, one image
+Request: a single sculptural terracotta espresso cup with a thick rounded handle, on a pale limestone block
+Look: editorial still life photograph, warm ivory seamless background, matte handmade glaze with tiny natural imperfections, soft directional afternoon window light from upper left
+Composition: cup in right third, low eye-level viewpoint, strong clean silhouette, quiet negative space on left; warm terracotta and cream palette, subtle contact shadow
+Constraints: one cup only, no saucer, no coffee beans, no steam, no text, no watermark, no border

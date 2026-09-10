@@ -1,46 +1,64 @@
-# claude-skill-codex-imagegen
+# Codex Imagegen
 
-**[Claude Code](https://docs.claude.com/en/docs/claude-code) の中から OpenAI の [gpt-image-2](https://developers.openai.com/api/docs/models/gpt-image-2) — 最も強力な画像生成モデル — をそのまま使えます。**
+### Claude Codeで、画像を作り、選び、仕上げる。
 
-🌐 [English](./README.md) · [한국어](./README.ko.md) · **日本語** · [简体中文](./README.zh-CN.md)
+**画像の生成中も、コーディングを続けられます。** 利用中のCodexサブスクリプションで動作し、画像APIキーや別途API料金は不要です。
 
----
-
-### 📦 What
-
-自然言語のリクエスト — *「ヒーロー画像を作って」*、*「ファビコンを生成」*、*「サイトに合う画像を挿入して」* — だけで Codex CLI の `$imagegen`（gpt-image-2）を呼び出し、結果ファイルを指定した場所に正確に保存する Claude Code スキルです。新しいスラッシュコマンドも覚える必要はありません。Claude が作業中に自然に呼び出します。
-
-### 💡 Why
-
-Claude Code には組み込みの画像モデルがありません。そのため「バイブ・コーディング」されたサイトの多くは画像なしで出荷されるか、サイトのトーンに合わないストックフォトが貼り付けられがちです。さらに 1 年前までは、生成画像のほうがレイアウト以上に "AI 感" を強く放っていたため、皆が試すことをやめていました。**gpt-image-2 でようやくその水準を超えました** — テキストレンダリングはほぼ完璧、ライティングは一貫、被写体構図も意図的。これにより *画像レイヤー* が「AI で作られたサイトは全部同じに見える」罠から抜け出す最も安いルートになりました。
-
-このスキルは、その作業を **セッション中に自動的に発生する一工程** に変えます。プロジェクトルートに `DESIGN.md` を置けば、サイト全体に統一感あるトーンの画像セットを自動配置します。
-
-特に **デザイナーを雇わず一人で開発する開発者** にとって、最も大きな差を生みます。
-
-### 🚀 クイックスタート
+[English](README.md) · [한국어](README.ko.md) · **日本語** · [简体中文](README.zh-CN.md)
 
 ```bash
-npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen \
-  --skill codex-imagegen
+npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen --skill codex-imagegen
 ```
 
-新しい Claude Code セッションを開始し、自然言語で依頼:
+| 写真の方向性 | ペーパーイラスト | 選んだ画像を編集 |
+|:---:|:---:|:---:|
+| ![テラコッタのカップ](assets/demo/a-studio.png) | ![紙の質感のカップ](assets/demo/b-paper.png) | ![緑色に編集したカップ](assets/demo/a-studio-v2.png) |
 
-> *「このランディングページ用に 1600×900 のヒーロー画像を作って、assets/hero.png に保存して。」*
+付属ランチャーで実際に生成した画像です。[プロンプトと検証記録](docs/validation.md)を公開しています。画像モデルはCodexが管理するため、特定のモデルの出力とは表示していません。
 
-サイト全体で一貫したビジュアルが必要なら、プロジェクトルートに `DESIGN.md`(パレット・タイポ・イラストスタイル)を置いて:
+## 自然な言葉で依頼
 
-> *「DESIGN.md をスタイルリファレンスとして、サイトに合う画像を挿入して。」*
+| 目的 | 依頼の例 |
+|---|---|
+| すぐに生成 | 「このページに合うヒーロー画像を作って」 |
+| 方向性を相談 | 「まだ決まっていないので、短く質問して」 |
+| 候補を比較 | 「違う方向性で3案見せて」 |
+| 部分編集 | 「2番を使って、背景だけ変えて」 |
+| 透過画像 | 「商品を透明なPNGにして」 |
+| 並列作業 | 「画像を生成している間にUIを仕上げて」 |
 
-以上です。残りはスキルが処理します。
+明確な依頼にはすぐ着手します。必要なときだけ質問し、候補は別々の画像として保存します。編集は元画像を残し、変更したい部分と保つ部分を区別します。
 
----
+## セットアップ
 
-## より詳しく
+macOS/Linux、Python 3.9+、Claude Code、ログイン済みのCodex CLI 0.153.4+が必要です。
 
-詳細(インストール手順、隔離された実行方式、Codex エージェントによるプロンプト再構成とネイティブスキーマ、透過背景のネイティブアルファ生成とピクセル検証、サイズ規則、セキュリティ、既知の制約、比較デモ)は **[英語版 README](./README.md)** にまとめてあります。
+```bash
+npm install -g @openai/codex
+codex login
+```
 
-## ライセンス
+上のコマンドでスキルをインストールしたら、新しいClaude Codeセッションで依頼してください。`DESIGN.md`や参考画像を指定すると、見た目を揃えられます。手動なら`skill/`を`~/.claude/skills/codex-imagegen/`へコピーします。Skills CLIの更新は`npx skills update`です。
 
-[MIT](LICENSE) © 2026 JunSeo99
+## バックグラウンド生成
+
+分離したPythonワーカーがCodexの応答を待ち、Claudeにはジョブ情報をすぐ返します。同時実行は標準2件、最大4件。PNG、比較用HTML、状態、ログをローカル保存します。状態確認はCodexを呼びません。失敗後に確認して再開すると、完了済み画像は再生成しません。PCは起動している必要があり、ホストによっては専用のバックグラウンド実行機能が必要です。
+
+```bash
+python3 skill/scripts/image_project.py --prompt-file brief.txt --out-dir output/hero-v1 --background
+python3 skill/scripts/image_project.py --out-dir output/hero-v1 --status
+```
+
+プロンプトの先頭は`$imagegen`です。複数案は[JSONプラン](tests/prompts/demo/plan.json)を`--plan`で指定します。
+
+## 小さなコンテキスト、明確な対応範囲
+
+Claudeが企画と確認を担当し、Codexには完成した短い指示だけを渡します。中継モデルは標準で`gpt-5.6-luna`、推論は`none`。一般的なコーディング指示とスキル一覧を省きます。[検証](docs/validation.md)で確認したコンテキスト削減は、総トークンや料金の削減率を保証するものではありません。
+
+公式には[Flare](https://developers.openai.com/api/docs/models/gpt-image-2.5-flare)は速度重視、[Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst)は品質と精密な編集を重視します。ただし、**このサブスクリプション経路では両モデルを固定できません**。`--model`はテキスト中継モデルの設定です。有料APIへ切り替える経路はありません。
+
+透過PNGは実際のアルファ値を検証します。文字、形状、意図しない変更はClaudeが画像を見て確認します。生成編集にピクセル単位の保持保証はありません。
+
+[詳細（英語）](README.md) · [変更履歴](CHANGELOG.md) · [セキュリティ](SECURITY.md) · [MIT](LICENSE)
+
+役に立ったら、Starで保存して今後のリリースもチェックしてください。Anthropic/OpenAIとは独立したプロジェクトです。

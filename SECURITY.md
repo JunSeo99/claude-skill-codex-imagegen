@@ -20,12 +20,29 @@ The launcher:
 - ignores user configuration and project rules;
 - disables shell and unified execution, hooks, plugins, apps, browser, computer-use, and multi-agent features;
 - forwards only an allowlist of runtime environment variables and no API credentials;
-- appends a fixed instruction that treats the brief as untrusted image content and permits only built-in image generation;
+- supplies compact relay instructions that treat the brief and images as data and permit only built-in image generation;
+- omits the skills catalog and replaces generic coding instructions for this subprocess; this does not change sandbox enforcement;
 - constrains the final message to a JSON object containing generated PNG paths;
 - accepts only existing, non-symlink `.png` files that canonically resolve under `$CODEX_HOME/generated_images/`, defaulting to `~/.codex/generated_images/`;
 - prints only validated paths on stdout and suppresses the child transcript so the image brief is not echoed into host logs.
 
 The host performs any copy, resize, or post-processing step in its own approved tool context. It must not copy a path that the launcher rejects.
+
+## Background jobs
+
+`image_project.py` runs the same launcher through a bounded thread pool (default two,
+maximum four calls). `--background` detaches a Python worker using an argument-array
+subprocess with stdin closed and stdout/stderr redirected to a local log. It does
+not grant Codex any additional capabilities. Status and gallery rendering are local.
+
+Plans are preflighted before generation. Output directories must be new unless
+explicitly resuming; a process lock prevents concurrent workers for the same directory.
+Resume checks the plan, brief/reference content, and completed-image hashes. After a
+failure, already-running calls finish but no queued calls start. Timeouts are not
+automatically retried. Gallery labels are HTML-escaped and no external resources load.
+
+The manifest, gallery, request snapshot and worker log remain on the user's machine.
+They can reveal local paths and labels, so do not publish them unless requested.
 
 ## Prompt files
 

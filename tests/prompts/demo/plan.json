@@ -1,0 +1,7 @@
+{
+  "title": "One brief. Two directions.",
+  "jobs": [
+    {"id": "a-studio", "label": "Warm studio photograph", "prompt_file": "a.txt"},
+    {"id": "b-paper", "label": "Tactile paper illustration", "prompt_file": "b.txt"}
+  ]
+}

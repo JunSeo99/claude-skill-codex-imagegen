@@ -1,0 +1,6 @@
+$imagegen
+Asset: edited product photograph, one image, preserve source aspect ratio
+Input images: Image 1 is the accepted base photograph
+Change: only the terracotta cup's glaze color to muted forest green (#345C45)
+Preserve: the cup silhouette, proportions, rim and rounded handle, matte texture, limestone block, framing, window light from upper left, contact shadow, ivory background and empty space
+Constraints: no new objects, no text, no watermark; do not restyle or recompose the scene

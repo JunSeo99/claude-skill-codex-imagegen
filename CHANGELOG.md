@@ -2,6 +2,31 @@
 
 All notable changes to this project are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-09-10
+
+### Added
+
+- Intent-aware workflows for optional creative interviews, distinct directions, reference edits, consistent sets, and visual review.
+- Subscription-only background image jobs: detached workers, immediate job handles, local status, bounded parallel generation (default 2, maximum 4).
+- Separate PNGs, comparison galleries, checkpoint manifests, and verified resume that skips completed images.
+- GPT Image 2.5 research distinguishing Flare/Sunburst strengths from the image controls actually exposed by Codex.
+- Live generation/edit examples, public prompts, context measurements, and tests for background dispatch, concurrent work, failure handling, and resume.
+
+### Changed
+
+- Default to `gpt-5.6-luna` with reasoning `none`; automatic fallback to a heavier account-default relay now requires `--allow-default-model-fallback`.
+- Replace generic coding instructions with a compact image relay; omit the skills catalog and disable unrelated capabilities.
+- Reduce the skill entrypoint from 2,198 to 762 whitespace-delimited words and load conditional references only when needed.
+- Require Codex CLI 0.153.4+ for the verified context controls.
+- Rebuild English, Korean, Japanese, and Chinese READMEs around real outputs and copyable workflows.
+- Move demonstration assets outside the installed skill, reducing the distributable to roughly 22 KB.
+- Treat older size/transparent-edit results as dated observations; inspect current output rather than declaring permanent model limitations.
+
+### Boundaries
+
+- No separate image API route, API credential handling, or automatic billing change.
+- `--model` is the Codex text relay. The subscription image backend remains Codex-managed; Flare/Sunburst cannot currently be pinned through this launcher.
+
 ## [0.2.3] - 2026-09-07
 
 ### Added

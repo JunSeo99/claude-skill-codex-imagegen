@@ -1,299 +1,148 @@
-# claude-skill-codex-imagegen
-[![skills.sh](https://skills.sh/b/JunSeo99/claude-skill-codex-imagegen)](https://skills.sh/JunSeo99/claude-skill-codex-imagegen/codex-imagegen)
+<div align="center">
 
-**Use OpenAI's [gpt-image-2](https://developers.openai.com/api/docs/models/gpt-image-2) — OpenAI's most capable image generation model — from inside [Claude Code](https://docs.claude.com/en/docs/claude-code).**
-🌐 **English** · [한국어](./README.ko.md) · [日本語](./README.ja.md) · [简体中文](./README.zh-CN.md)
+# Codex Imagegen
 
----
+### Beautiful images. Right inside Claude Code.
 
-### 📦 What
+Describe it. Compare directions. Refine your favorite. **Keep coding while images render.**
 
-A Claude Code skill that calls Codex CLI's `$imagegen` (gpt-image-2) on plain natural-language asks — *"generate a hero image"*, *"make a favicon"*, *"insert images that fit the site"* — and lands the result where you actually wanted it. No new slash command to learn. Claude calls it as part of whatever it's already doing.
+[![skills.sh](https://skills.sh/b/JunSeo99/claude-skill-codex-imagegen)](https://skills.sh/JunSeo99/claude-skill-codex-imagegen/codex-imagegen) [![CI](https://github.com/JunSeo99/claude-skill-codex-imagegen/actions/workflows/ci.yml/badge.svg)](https://github.com/JunSeo99/claude-skill-codex-imagegen/actions) [![MIT](https://img.shields.io/badge/license-MIT-2f6650)](LICENSE)
 
-### 💡 Why
+**English** · [한국어](README.ko.md) · [日本語](README.ja.md) · [简体中文](README.zh-CN.md)
 
-Claude Code has no built-in image model. So most vibe-coded sites either ship without imagery or paste in stock that doesn't match. And generated images from a year ago screamed "AI" louder than the layout did, so people stopped trying. gpt-image-2 finally clears that bar — near-perfect text rendering, consistent lighting, real subject framing — which makes the *image layer* the cheapest way out of the "every AI site looks the same" trap. This skill makes that an in-session step, optionally guided by a `DESIGN.md` you keep at your project root.
+</div>
 
-### 🚀 Quickstart
+A Claude Code skill for turning a rough idea into reviewed image files using your **existing Codex subscription**. No image API key. No separate API bill. No new prompt language to learn.
 
 ```bash
-npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen \
-  --skill codex-imagegen
+npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen --skill codex-imagegen
 ```
 
-Start a new Claude Code session, then ask in natural language:
+> “Give me two visual directions for a coffee brand. Keep building the page while they generate.”
 
-> *"Generate a 1600×900 hero image for this landing page, save to assets/hero.png."*
+| 01 · Studio photograph | 02 · Paper illustration | 01, refined · Green glaze |
+|:---:|:---:|:---:|
+| ![Terracotta cup photographed on limestone](assets/demo/a-studio.png) | ![Terracotta cup as a tactile paper illustration](assets/demo/b-paper.png) | ![Chosen photograph edited to a green cup](assets/demo/a-studio-v2.png) |
+| Warm light. Natural material. | Graphic shape. Paper texture. | “Keep the shot. Change only the cup color.” |
 
-Want consistency across an entire site? Drop a `DESIGN.md` at the project root, then:
+Actual outputs through the bundled Codex launcher, not hand-built mockups. [Prompts and verification](docs/validation.md). The image backend is managed by Codex; these examples are not labeled as a particular GPT Image model.
 
-> *"Using DESIGN.md as the style reference, insert images that fit the site."*
+[Get started](#get-started) · [What you can ask](#what-you-can-ask) · [Background generation](#background-generation) · [How it stays lean](#how-it-stays-lean) · [Model support](#gpt-image-25-and-model-support)
 
-That's it. Full details below.
+## What you can ask
 
----
+| You say | The skill does |
+|---|---|
+| “Make a hero image for this page.” | Uses the page's style and layout; creates one image. |
+| “I'm not sure what I want. Interview me.” | Asks a few useful questions before spending generation quota. |
+| “Show me three different directions.” | Makes separate images and a local comparison gallery. |
+| “Use option 2. Change only the background.” | Edits the chosen image, preserves the original, checks for drift. |
+| “Make a transparent product cutout.” | Requests genuine alpha and checks decoded PNG pixels. |
+| “Make the rest of the assets match this one.” | Reuses the accepted reference and a concise style lock. |
+| “Generate these while you finish the UI.” | Starts background workers; Claude continues independent work. |
 
-Claude Code does not ship with an image-generation model of its own. This skill closes that gap by teaching Claude Code to call gpt-image-2 through the [OpenAI Codex CLI](https://developers.openai.com/codex/cli)'s built-in `$imagegen` feature — so you can generate icons, banners, OG cards, illustrations, infographics, and photo edits without ever leaving your Claude Code session.
+No mandatory interview for a clear request. No extra variations when you asked for one. No automatic polishing loop after an image already works.
 
-The skill bundles a verified prompting playbook, a CLI reference, a security note, and a sample asset produced during validation.
+## Get started
 
-<p align="center">
-  <img src="skill/assets/hero.png" alt="A single white origami crane on a soft warm-gray surface — sample output generated by gpt-image-2 via this skill" width="800" />
-</p>
-
-<p align="center">
-  <em>Sample 1600×900 hero image generated by gpt-image-2 via this skill.</em>
-</p>
-
-## Why this skill exists
-
-Claude Code can already drive the Codex CLI, but `$imagegen` has rough edges that Claude misses on its own:
-
-- **Your prompt gets rewritten before it reaches the model.** The Codex agent restructures every prompt into its internal labeled schema (verified via session logs), and *augments* vague prompts with its own taste. This skill writes prompts in that native schema directly, so nothing is lost or invented in translation.
-- **Output size is a fixed area, not what you asked for.** The built-in tool renders every image at ≈1.57 megapixels and reads only the aspect ratio from the prompt — that's why both 256×256 and 1024×1024 come back as 1254×1254 (verified across 393 outputs on codex-cli 0.153.2). The skill states the aspect ratio in the brief and resizes to the exact size on the host.
-- **GPT Image 2 supports transparent backgrounds in preview.** The skill asks Codex for a genuinely transparent PNG, then runs a bundled dependency-free pixel validator that requires alpha values from 0 to 255 and, for cutouts, fully transparent corners. See the [official OpenAI image-generation guide](https://developers.openai.com/api/docs/guides/image-generation#customize-image-output).
-- **`quality`, masks, and `input_fidelity` are not launcher controls.** The skill keeps the subscription path intentionally small: specify the intended finish in the brief, attach role-labeled references, visually verify, and resize accepted outputs on the host.
-- **The Codex agent is only a relay, so it should be the cheapest one.** Codex subscription limits are one shared allowance drawn down at model-specific rates (Plus, per 5 hours: GPT-6 Astra 5–45 messages vs GPT-5.6 Luna 250–2,000). The launcher accepts `--model`/`--reasoning-effort`, the skill runs the relay on the lightest listed model, and it falls back to the account default automatically when a slug is not available.
-- The raw PNG lands under `~/.codex/generated_images/<session-uuid>/` — not where you asked
-- "Stunning, cinematic, 8K" keyword prompts produce visibly worse output than structured briefs — the skill enforces a schema-based prompt with concrete art direction
-- Passing a user prompt directly inside a shell command creates an injection boundary — the bundled launcher sends prompts over stdin, uses a read-only sandbox, and validates every returned PNG path before the host copies anything
-
-This skill bakes those facts into a **sandboxed split workflow**: Codex generates only; the host validates the generated path and performs file moves and post-processing in its own approved context.
-
-### What people use it for
-
-The tool is general — anything that needs a PNG/JPEG/WebP written to disk fits. In practice the workflows that come up most often:
-
-- **Hero images and background photography** for landing pages and marketing sites
-- **OG cards and social previews** generated per page
-- **Favicons and app icons** at the sizes you actually need
-- **Blog post illustrations** that match the post's tone instead of leaning on stock libraries
-- **Brand asset drafts** — logos, banners, badges — to iterate before committing to a designer
-- **Transparent cutouts** — stickers, product shots, and character art with real alpha, verified from decoded PNG pixels rather than inferred from the viewer
-- **Infographic placeholders and diagrams** with consistent visual language
-- **Photo edits** — change-X-keep-Y patterns on an existing image, including multi-image compositing with role-labeled references
-
-The workflow it was originally built around is **solo developers shipping sites without a designer** — where image quality and stylistic consistency are the main signal separating a vibe-coded site from a polished product. With a `DESIGN.md` at the project root (see [Usage](#usage)), Claude Code can generate a coherent image set across the whole site in one pass. But none of that requires you to be using it for a site; the skill is just as happy producing a single OG card or a batch of game-asset placeholders.
-
-> **Security note:** the distributed skill has one Codex execution path. It passes the prompt by file/stdin rather than shell interpolation, runs in an empty temporary directory, disables shell and every unrelated tool family, requires a schema-constrained result, and accepts only generated PNGs that resolve under Codex's generated-images directory. See [`SECURITY.md`](SECURITY.md).
-
-## Transparent output verified end to end
-
-On 2026-08-21, the repository's launcher invoked `codex-cli 0.149.0` → built-in `$imagegen` with the [recorded transparent-star prompt](tests/prompts/transparent-e2e.txt). The returned 1295×1214 file was a non-interlaced 8-bit RGBA PNG with alpha extrema **0–255**, **1,022,757 fully transparent pixels**, **548,590 partially transparent edge pixels**, and four corner alpha values of **0**. The committed fixture below is a 256-pixel downscale of that result; GitHub Actions decodes and revalidates its alpha channel on every push.
-
-Re-verified on 2026-09-07 with `codex-cli 0.153.2` and the light relay model (`--model gpt-5.6-luna --reasoning-effort none`): the same prompt returned a 1274×1235 RGBA PNG in 50 s with alpha extrema 0–255, 1,015,620 fully transparent pixels, 556,785 partially transparent pixels, and four corner alpha values of 0. An edit of that cutout through `--image` returned a valid path in 41 s but an opaque RGB PNG with a painted checkerboard, which the validator rejects — regenerate transparent assets instead of editing them.
-
-<p align="center">
-  <img src="tests/fixtures/transparent-e2e.png" alt="Cobalt-blue five-point star generated through the sandboxed Claude-to-Codex launcher on a genuinely transparent canvas" width="180" />
-</p>
-
-## Requirements
-
-- macOS or Linux
-- Python 3.9 or newer (`python3`) for the bundled safe launcher
-- [Claude Code](https://docs.claude.com/en/docs/claude-code) — this skill is a filesystem skill loaded from `~/.claude/skills/`, which is a Claude Code feature (Claude.ai web uses a different skill upload mechanism)
-- [Codex CLI](https://developers.openai.com/codex/cli) v0.149 or newer, verified on 0.153.2 (`npm i -g @openai/codex`) — the safe launcher relies on current tool-disable, config-isolation, and JSON-schema output controls
-- A logged-in Codex session (`codex login`) — uses your ChatGPT/Codex subscription
-
-Verified against `codex-cli 0.153.2` on macOS. `sips` ships with macOS; on Linux the skill can use ImageMagick `convert` for resizing.
-
-## Installation
-
-### Option A — install with the Skills CLI (recommended)
+You need **Claude Code**, **Python 3.9+**, and **Codex CLI 0.153.4+** on macOS or Linux, with an active Codex login.
 
 ```bash
-npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen \
-  --skill codex-imagegen
+# If Codex is not installed yet:
+npm install -g @openai/codex
+codex login
+
+# Install this skill:
+npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen --skill codex-imagegen
 ```
 
-This is the shortest cross-agent install path and, when telemetry is enabled, lets anonymous Skills CLI telemetry count the install on [skills.sh](https://skills.sh/JunSeo99/claude-skill-codex-imagegen/codex-imagegen).
+Open a new Claude Code session and ask:
 
-### Option B — symlink a clone for development
+> “Create a warm editorial hero image for this landing page. Leave room for the headline on the left. Save the final image to assets/hero.png.”
 
-```bash
-git clone https://github.com/JunSeo99/claude-skill-codex-imagegen.git
-mkdir -p ~/.claude/skills
-ln -s "$(pwd)/claude-skill-codex-imagegen/skill" ~/.claude/skills/codex-imagegen
-```
+Already have a design system? Point Claude at your `DESIGN.md` or attach a reference image. Ask in English, Korean, Japanese, or your preferred language.
 
-Symlinking from `skill/` lets you `git pull` to update without re-copying files.
+<details>
+<summary>Manual installation and updates</summary>
 
-### Option C — install the prebuilt `.skill` bundle
+Clone the repository and copy the skill into `~/.claude/skills/codex-imagegen/`, or symlink `skill/` there for development. The installable folder is **skill/**, not the repository root.
 
-A pre-packaged distributable lives in `dist/codex-imagegen.skill` (it's a zip with a `.skill` extension).
+A reproducible [codex-imagegen.skill](dist/codex-imagegen.skill) archive is also available; unzip it into `~/.claude/skills/`.
 
-```bash
-git clone https://github.com/JunSeo99/claude-skill-codex-imagegen.git
-mkdir -p ~/.claude/skills
-unzip claude-skill-codex-imagegen/dist/codex-imagegen.skill -d ~/.claude/skills/
-```
+To update a Skills CLI installation, run `npx skills update`. For a development clone, pull the latest release. Restart Claude Code if it still shows the previous instructions.
 
-### Option D — copy the folder
+</details>
 
-```bash
-git clone https://github.com/JunSeo99/claude-skill-codex-imagegen.git
-mkdir -p ~/.claude/skills
-cp -r claude-skill-codex-imagegen/skill ~/.claude/skills/codex-imagegen
-```
+## Background generation
 
-Start a new Claude Code session if the skill does not appear immediately.
-
-## Usage
-
-The skill activates on phrases such as:
-
-- "generate an image", "make an icon", "create a banner", "OG image"
-- "hero illustration", "make a favicon", "brand mark", "product shot"
-- "imagegen", "GPT Image 2", "codex image"
-
-*Multilingual triggers are supported via the skill's description field — localized prompts (Korean, Japanese, etc.) work without configuration.*
-
-### Basic usage — single asset
-
-Any request that produces a visual file saved to disk:
-
-> **You**: Make a 512×512 hero icon for my landing page — a single seedling growing from a flat horizon, line-art only, no text.
->
-> **Claude**: *(invokes the skill, composes a prompt in Codex's native labeled schema, writes it to a temporary file, runs the bundled sandboxed launcher, validates the returned generated-image path, resizes it to `./assets/hero-icon.png`, then opens the file to verify it)*
-
-The launcher passes prompt content over stdin with no shell interpolation, runs Codex in an empty temporary directory, ignores local config and rules, disables every tool family except built-in image generation, pins a light relay model (falling back to the account default if the slug is unavailable), constrains the final response with JSON Schema, and validates that every source PNG resolves inside `~/.codex/generated_images/` before the host copies or resizes it.
-
-For complex prompts (text in the image, photo edits, brand assets), Claude reads `references/prompting-guide.md` before generating to apply the structured prompt template and avoid known pitfalls.
-
-### For full-site image sets — pair with a `DESIGN.md`
-
-For projects that need a coherent visual language across multiple slots — hero, OG card, empty states, illustrations, favicons — drop a `DESIGN.md` at the project root with your palette, typography, and illustration style. Then ask Claude Code:
-
-> **You**: Using DESIGN.md as the style reference, insert images that fit the site.
-
-Claude reads `DESIGN.md`, scans the codebase for slots that need imagery, writes prompts that incorporate the palette and tone, calls this skill for each, and inserts the resulting paths into the right `<img>` tags. The hero image, the empty-state illustration, and the OG card all end up looking like they belong to the same product.
-
-A minimal `DESIGN.md` that works well:
-
-```markdown
-# Design
-
-## Concept
-Calm, considered, modern.
-
-## Palette
-- Surface (main):  #F4F1ED  — warm off-white
-- Surface (cards): #FFFFFF
-- Text:            #1A1A1A
-- Accent / CTA:    #C46A4E  — soft terracotta, used sparingly
-
-## Typography
-- Inter, system-ui sans-serif
-
-## Illustration style
-- Single subject, plenty of whitespace, no busy backgrounds
-- Soft natural light from upper left
-- No text inside images unless explicitly asked
-- Avoid stock-photo vibes and over-saturated colors
-```
-
-The qualitative `Illustration style` block carries most of the consistency work. Palette obviously matters too, but it's the descriptive instructions ("hand-folded paper feel", "no busy backgrounds", "warm tones") that keep each image from looking like it came from a different stock-image library.
-
-## Before / After — what the image layer changes
-
-To make the difference concrete, here's the same coffee-shop landing page built two ways. **Identical component code** in both — same Next.js 15, same Tailwind, same shadcn-style markup, same content, same navigation. The only thing that varies is the image layer.
-
-| Without images | With images |
-|:---:|:---:|
-| <img src="assets/comparison-without.png" alt="Coffee landing page built with shadcn defaults, Lucide icons, and a purple-blue gradient — no real images, classic AI-default visual stack" width="420"> | <img src="assets/comparison-with.png" alt="Same coffee landing page built with a DESIGN.md and product photography generated by this skill via gpt-image-2 — calm blue-gray palette, detailed coffee-bag product shots, editorial brewing photos" width="420"> |
-| 0 images. Lucide `Coffee` over a purple-blue gradient hero, `Bean` icons inside product cards, `Sparkles` over a gradient story, `Droplet`/`Flame` brewing icons. The textbook AI default stack. | 8 images generated by this skill with a `DESIGN.md` at the project root. Hero photography, five custom coffee-bag product shots (origin, roast, tasting notes, roast/best-by dates, brew recipe all on-label), a roastery story background, three brewing macro shots. |
-
-Both pages were produced in the same session. The right-hand one took roughly one extra command — *"Using DESIGN.md as the style reference, insert images that fit the site."* The demo project itself is intentionally kept outside this repo to keep the skill bundle small.
-
-## What's in the skill
-
-```
-skill/
-├── SKILL.md                  Prompt-flow model, sandboxed workflow, control table,
-│                             native-alpha workflow, recipes, failure modes
-├── scripts/
-│   ├── run_codex_imagegen.py Safe stdin launcher and structured generated-path validator
-│   └── verify_png_alpha.py   Dependency-free decoded-pixel alpha validator
-├── references/
-│   ├── prompting-guide.md    Native schema, first-50-words, text rendering, people,
-│   │                         edit pattern, multi-image/consistency, anti-patterns, Korean text
-│   └── cli-reference.md      Safe launcher, input/output boundaries,
-│                             alpha verification, size rules, troubleshooting
-└── assets/
-    └── hero.png              Sample 1600×900 hero image generated by gpt-image-2
-```
-
-Prompts are written in the Codex agent's own labeled schema — because the agent restructures every prompt into that schema anyway, writing it directly means nothing is lost in translation:
+Image calls themselves wait for Codex. **The host no longer has to.** A detached Python worker owns that wait, while Claude gets a job handle immediately. Multiple candidates run with bounded concurrency: two at a time by default, up to four.
 
 ```text
-Use case → Asset type → Primary request → [Input images] → Scene/backdrop → Subject
-→ Style/medium → Composition/framing → Lighting/mood → Color palette
-→ Materials/textures → [Text (verbatim)] → Constraints → Avoid
+Claude: understand → write brief → start job ───→ continue coding → inspect results
+                                     ├─ image A ─┐
+                                     └─ image B ─┴─→ PNGs + gallery + manifest
 ```
 
-Every slot left empty is a slot the Codex agent fills with its own taste — the skill's core rule is to arrive fully specified.
-
-## Cost
-
-- Uses the logged-in Codex subscription and its current usage limits. The relay model is chosen for limit weight, not capability: measured on 0.153.2, one image turn moved the 5-hour meter about 2% on GPT-6 Astra and 0–1% on GPT-5.6 Luna, with identical image quality.
-- Never switches to direct API billing and never reads or forwards API credentials.
-
-## Known limitations of gpt-image-2
-
-| Limitation | Workaround the skill applies |
-|---|---|
-| Output is always ≈1.57 megapixels at the prompt's aspect ratio; pixel dimensions in the prompt are ignored | States the aspect ratio in the brief; host resizes with `sips -z H W` (macOS) or `convert -resize WxH!` (Linux) |
-| Transparent output is a preview capability and may occasionally miss the requested alpha; edits of attached images return opaque PNGs | Requests genuine alpha and transparent corners, then decodes the PNG and requires alpha extrema 0–255; retries once on failure; regenerates instead of editing transparent assets |
-| `quality`/masks/`input_fidelity` are not launcher parameters | Uses concrete finish requirements, role-labeled reference images, visual verification, and host resizing |
-| Long multi-line text passages, brand names, and very small text in dense layouts still wobble (short labels and CJK render near-perfectly) | EXACT TEXT marker + double quotes for literal strings; letter-by-letter spelling for brand names; HTML/CSS overlay for paragraph-length text |
-| Latency up to 2 min on complex prompts | Launcher timeout defaults to 300 seconds |
-| Imprecise element placement in complex layouts | Falls back to simplification or SVG-then-rasterize suggestion |
-
-## Compatibility
-
-| Component | Tested |
-|---|---|
-| `codex-cli` | 0.153.2 (minimum 0.149.0) |
-| OS | macOS (Darwin 25.4.0); Linux untested but expected to work with ImageMagick fallback |
-| Claude Code | App / CLI (filesystem skills) |
-
-Output-path layout under `~/.codex/generated_images/` and `$imagegen` invocation semantics are not part of the Codex CLI's public contract. If a future codex-cli release changes them, please open an issue with the new behavior.
-
-## Contributing
-
-Issues and PRs welcome. Useful directions:
-
-- Linux-side post-processing parity (ImageMagick verified end-to-end)
-- Additional recipes (favicons, app store screenshots, social card pipelines)
-- Improved non-Latin text rendering tips (CJK, Arabic, Devanagari, etc.)
-- Migration notes when newer Codex CLI versions change `$imagegen` behavior
-
-When changing the skill body, run the validators from [`anthropics/skills`](https://github.com/anthropics/skills/tree/main/skill-creator):
+Claude normally handles the commands. For scripting:
 
 ```bash
-python3 path/to/skill-creator/scripts/quick_validate.py skill/
-python3 scripts/package_skill.py
-python3 -m unittest discover -s tests -v
+python3 skill/scripts/image_project.py \
+  --prompt-file brief.txt --out-dir output/hero-v1 --background
+
+python3 skill/scripts/image_project.py --out-dir output/hero-v1 --status
 ```
 
-## Security
+For multiple directions, supply a [small JSON plan](tests/prompts/demo/plan.json) with `--plan` and optionally `--workers 2`. Each brief starts with `$imagegen`. Use `--dry-run` to validate without generating.
 
-See [`SECURITY.md`](SECURITY.md) for the trust boundary, prompt-transport rules, sandbox policy, and generated-path validation.
+Outputs include separate PNGs, `index.html`, `manifest.json`, and `worker.log`. Successful candidates survive failures. After inspecting the error, `--resume` verifies and skips completed images. It never restarts the whole set automatically. Keep the machine awake; background jobs are local processes, not cloud queues. Hosts that terminate detached processes may require their own background-task facility.
 
-## Changelog
+## How it stays lean
 
-See [`CHANGELOG.md`](CHANGELOG.md).
+**Claude makes the decisions. Codex receives the finished brief.**
 
-## Acknowledgements
+- A compact skill entrypoint loads only the reference needed for the current task.
+- The relay uses `gpt-5.6-luna` with reasoning `none` by default.
+- General coding instructions are replaced by a short image-only relay instruction. The skills catalog and unrelated capabilities are disabled for that subprocess.
+- Interviews, art direction, quality review, galleries, and status checks do not start another Codex conversation.
+- A rejected relay does not silently upgrade to a heavier model. Completed images are not regenerated on resume.
 
-- [OpenAI — Codex CLI image generation feature](https://developers.openai.com/codex/cli/features)
-- [OpenAI — Image Generation guide](https://developers.openai.com/api/docs/guides/image-generation)
-- [OpenAI Cookbook — GPT Image Prompting Guide](https://developers.openai.com/cookbook/examples/multimodal/image-gen-models-prompting-guide)
-- [fal.ai — GPT Image 2 Prompting Guide](https://fal.ai/learn/tools/prompting-gpt-image-2)
-- [anthropics/skills — skill-creator template](https://github.com/anthropics/skills)
+A local prompt-input check reduced **automatically injected context from 11,133 to 821 characters**. This is a context measurement, not a claim of 93% lower total tokens or cost. Image/tool tokens and runtime instructions still apply. [Measurement details](docs/validation.md).
 
-This project is independent and not affiliated with, endorsed by, or sponsored by Anthropic or OpenAI. "Claude", "Claude Code", "OpenAI", "Codex", and "GPT" are trademarks of their respective owners.
+## GPT Image 2.5 and model support
 
-## License
+[Flare](https://developers.openai.com/api/docs/models/gpt-image-2.5-flare) is positioned for fast everyday generation. [Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst) targets demanding quality and precise edits. The skill's prompting and review guidance incorporates the new [official image guidance](https://developers.openai.com/api/docs/guides/image-generation).
 
-[MIT](LICENSE) © 2026 JunSeo99
+**This subscription path cannot currently pin Flare or Sunburst.** Codex manages the built-in image backend. `--model` chooses the lightweight text relay, not the image model. We do not substitute a separately billed API, invent a model selector, or label an unverified output as GPT Image 2.5. [Research and capability boundaries](docs/model-research.md).
+
+## Quality you can inspect
+
+Generation is only one step. Claude inspects composition, exact text, product geometry, unwanted changes, and edges before delivery. Transparent cutouts must pass the bundled pixel validator:
+
+```bash
+python3 skill/scripts/verify_png_alpha.py --require-transparent-corners image.png
+```
+
+Keep original files. Export proportionally to the requested size; no stretching and no “native 4K” claim for an upscale. Generative edits can drift, text can need correction, and account limits still apply. The older 0.153.2 size/alpha observations are retained as dated evidence, not universal model limits.
+
+The Codex child uses a read-only sandbox, isolated configuration, an environment allowlist, and validated output paths. Background workers only orchestrate this same launcher. [Security](SECURITY.md).
+
+## Built for reuse
+
+The skill follows the folder-based Agent Skills format with a concise intent description, relative references, and Python-standard-library scripts. The README is for people; runtime instructions live in [skill/SKILL.md](skill/SKILL.md).
+
+| Resource | Purpose |
+|---|---|
+| [Skill entrypoint](skill/SKILL.md) | Intent routing and the minimal generation workflow |
+| [Creative directions](skill/references/directions.md) | Separate candidates, selection, and resumable jobs |
+| [Editing guide](skill/references/editing.md) | Reference roles, preservation, transparent edits |
+| [CLI reference](skill/references/cli-reference.md) | Options, capability boundaries, troubleshooting |
+| [Changelog](CHANGELOG.md) | Versioned behavior changes |
+| [Validation](docs/validation.md) | Tests, live observations, and limitations |
+
+## Contribute a result
+
+Found a prompt that works especially well, or an edit that drifts? Open an issue with the prompt, expected result, CLI version, and an image you have permission to share. Remove private material first. Contributions that improve reproducible image quality are welcome.
+
+If this earns a place in your Claude Code workflow, **star the repository** to find it again and follow releases.
+
+[MIT license](LICENSE). Independent project; not affiliated with Anthropic or OpenAI.

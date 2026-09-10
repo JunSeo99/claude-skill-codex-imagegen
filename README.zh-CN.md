@@ -1,46 +1,64 @@
-# claude-skill-codex-imagegen
+# Codex Imagegen
 
-**在 [Claude Code](https://docs.claude.com/en/docs/claude-code) 中直接使用 OpenAI 的 [gpt-image-2](https://developers.openai.com/api/docs/models/gpt-image-2) — 目前最强大的图像生成模型。**
+### 在 Claude Code 中生成图片、比较方案、修改细节。
 
-🌐 [English](./README.md) · [한국어](./README.ko.md) · [日本語](./README.ja.md) · **简体中文**
+**图片在后台生成，代码继续写。** 使用现有的 Codex 订阅，无需图片 API 密钥，也没有额外的 API 账单。
 
----
-
-### 📦 What
-
-一个 Claude Code 技能(skill),通过自然语言请求 — *"生成一张主视觉图"*、*"做一个 favicon"*、*"为网站插入合适的图片"* — 即可调用 Codex CLI 的 `$imagegen`(gpt-image-2),并把结果文件精确保存到你想要的位置。不需要记新的斜杠命令。Claude 在工作过程中自然调用。
-
-### 💡 Why
-
-Claude Code 本身没有内置图像模型。所以大多数"氛围编码"出来的网站要么发布时没有图片,要么硬塞与网站调性不符的库存图。而且一年前,生成图比布局更明显地透露出"AI 味",大家因此放弃尝试。**gpt-image-2 终于跨过了这个门槛** — 文本渲染接近完美、光照一致、主体构图有意图。这让 *图像层* 成为摆脱"所有 AI 生成的网站都长得一样"陷阱最便宜的出口。
-
-这个技能把这件事变成 **会话中自动发生的一步**。在项目根目录放一个 `DESIGN.md`,它就会为整个网站自动布置风格一致的图像集合。
-
-对 **没有设计师、一个人独立开发** 的开发者影响最大。
-
-### 🚀 快速开始
+[English](README.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · **简体中文**
 
 ```bash
-npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen \
-  --skill codex-imagegen
+npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen --skill codex-imagegen
 ```
 
-启动新的 Claude Code 会话,然后用自然语言:
+| 摄影方案 | 纸艺插画 | 修改选中的图片 |
+|:---:|:---:|:---:|
+| ![石灰石上的陶杯](assets/demo/a-studio.png) | ![纸艺质感的陶杯](assets/demo/b-paper.png) | ![改为绿色的陶杯](assets/demo/a-studio-v2.png) |
 
-> *"为这个 landing page 生成一张 1600×900 的主视觉图,保存到 assets/hero.png。"*
+这些图片由仓库自带的启动器实际生成。[提示词和验证记录](docs/validation.md)均可查看。图片模型由 Codex 管理，因此我们不将这些结果标注为某个特定模型的输出。
 
-如果需要整站视觉一致,在项目根目录放一个 `DESIGN.md`(调色板·字体·插画风格),然后:
+## 用自然语言开始
 
-> *"以 DESIGN.md 作为风格参考,为网站插入合适的图片。"*
+| 目标 | 示例 |
+|---|---|
+| 直接生成 | “为这个页面生成一张主视觉。” |
+| 明确方向 | “我还没想好，先简短地问我几个问题。” |
+| 比较方案 | “给我三个明显不同的方向。” |
+| 局部修改 | “选第二张，只改背景。” |
+| 透明图片 | “把商品做成透明 PNG。” |
+| 并行工作 | “图片生成期间继续完成 UI。” |
 
-就这些。其余的交给技能处理。
+需求清晰就直接执行，只在需要时访谈。每个方案保存为独立图片；修改时保留原图，并明确哪些内容改变、哪些需要保持。
 
----
+## 安装要求
 
-## 更多信息
+macOS/Linux、Python 3.9+、Claude Code，以及已登录的 Codex CLI 0.153.4+。
 
-完整细节(安装方式、隔离执行方式、Codex 代理的 prompt 重构机制与原生 schema、透明背景原生 Alpha 生成与像素验证、尺寸规则、安全、已知限制、对比 demo)请见 **[英文 README](./README.md)**。
+```bash
+npm install -g @openai/codex
+codex login
+```
 
-## 许可证
+安装技能后打开新的 Claude Code 会话即可。可以指定 `DESIGN.md`、参考图片和保存路径。手动安装时，将 `skill/` 复制到 `~/.claude/skills/codex-imagegen/`。通过 Skills CLI 安装后可用 `npx skills update` 更新。
 
-[MIT](LICENSE) © 2026 JunSeo99
+## 后台与并行生成
+
+独立的 Python 工作进程负责等待 Codex，立即向 Claude 返回任务信息。默认同时运行两个生成任务，最多四个。PNG、对比用 HTML、状态文件和日志都保存在本地。状态查询不会调用 Codex。失败后检查错误再恢复，已经完成的图片不会重新生成。电脑需要保持运行；部分宿主环境可能需要自己的后台任务机制。
+
+```bash
+python3 skill/scripts/image_project.py --prompt-file brief.txt --out-dir output/hero-v1 --background
+python3 skill/scripts/image_project.py --out-dir output/hero-v1 --status
+```
+
+提示词以 `$imagegen` 开头。多个方案可用 `--plan` 传入[JSON 计划](tests/prompts/demo/plan.json)。
+
+## 精简上下文，明确能力边界
+
+Claude 负责访谈、构思与检查；Codex 只接收完成后的简短图片指令。默认中继模型为 `gpt-5.6-luna`，推理设为 `none`，省去通用编码指令和技能目录。[验证记录](docs/validation.md)中的上下文缩减不代表总 token 或成本同比例下降。
+
+官方将 [Flare](https://developers.openai.com/api/docs/models/gpt-image-2.5-flare)定位为快速日常生成，将 [Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst)定位为高质量生成与精细编辑。但**当前订阅路径无法固定选择这两个模型**。`--model` 设置的是文本中继模型，不是图片模型。没有切换到付费图片 API 的路径。
+
+透明 PNG 会检查真实的 alpha 像素。Claude 会查看文字、形状和非预期变化；生成式编辑不保证其他区域像素完全不变。
+
+[完整文档（英文）](README.md) · [更新日志](CHANGELOG.md) · [安全说明](SECURITY.md) · [MIT](LICENSE)
+
+如果这个技能对你有用，欢迎 Star 保存并关注后续版本。本项目独立于 Anthropic 和 OpenAI。

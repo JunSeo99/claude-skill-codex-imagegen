@@ -1,0 +1,6 @@
+$imagegen
+Asset: coffee brand campaign illustration, landscape 4:3, one image
+Request: a single sculptural terracotta espresso cup with a thick rounded handle on a pale cream rectangular pedestal
+Look: tactile cut-paper illustration, layered heavy colored paper with subtly fibrous edges; restrained terracotta, pale cream, dark rust and muted sage palette
+Composition: cup in right third, bold simple silhouette, oversized sage circle behind the cup, quiet negative space on left; directional paper-layer shadows
+Constraints: one cup only, no saucer, no coffee beans, no steam, no text, no watermark, no border

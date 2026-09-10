@@ -1,0 +1,7 @@
+{
+  "title": "Explore a direction. Refine the favorite.",
+  "jobs": [
+    {"id": "b-paper", "label": "Tactile paper illustration", "prompt_file": "b.txt"},
+    {"id": "a-studio-v2", "label": "Same composition, green glaze", "prompt_file": "edit.txt", "images": ["../../../assets/demo/a-studio.png"]}
+  ]
+}
