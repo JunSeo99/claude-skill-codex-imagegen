@@ -1,0 +1,18 @@
+{
+  "name": "codex-imagegen",
+  "description": "Create and refine images from Claude Code using a Codex subscription: Claude directs and reviews, Codex only generates.",
+  "author": {
+    "name": "JunSeo99"
+  },
+  "repository": "https://github.com/JunSeo99/claude-skill-codex-imagegen",
+  "license": "MIT",
+  "keywords": [
+    "image-generation",
+    "codex",
+    "imagegen",
+    "gpt-image"
+  ],
+  "skills": [
+    "./skill"
+  ]
+}

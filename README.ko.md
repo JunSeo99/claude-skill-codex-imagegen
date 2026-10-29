@@ -43,7 +43,7 @@ npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen --skill c
 
 ## 시작하기
 
-macOS 또는 Linux, Python 3.9+, Claude Code, 로그인된 Codex CLI 0.153.4+가 필요합니다.
+macOS 또는 Linux, Python 3.9+, Claude Code, 로그인된 Codex CLI 0.164.0+가 필요합니다.
 
 ```bash
 # Codex가 없다면 먼저 설치하고 로그인하세요.
@@ -77,11 +77,11 @@ python3 skill/scripts/image_project.py \
 python3 skill/scripts/image_project.py --out-dir output/hero-v1 --status
 ```
 
-여러 시안은 [JSON 계획 예시](tests/prompts/demo/plan.json)를 `--plan`으로 전달합니다. 각 프롬프트 파일은 `$imagegen`으로 시작합니다. `--dry-run`은 생성 없이 입력을 검사합니다.
+여러 시안은 [JSON 계획 예시](tests/prompts/demo/plan.json)를 `--plan`으로 전달합니다. `--dry-run`은 생성 없이 입력을 검사합니다.
 
 ## 컨텍스트와 구독 사용량을 아낍니다
 
-Claude가 인터뷰·기획·검수를 맡고, Codex에는 완성된 짧은 이미지 지시문만 전달합니다. 기본 중계 모델은 `gpt-5.6-luna`, 추론 설정은 `none`입니다. 중계 호출에서 일반 코딩 지시문과 스킬 목록을 제외합니다.
+Claude가 인터뷰·기획·검수를 맡고, Codex에는 완성된 짧은 이미지 지시문만 전달합니다. 기본 중계 모델은 `gpt-6-luna`, 추론 설정은 `none`입니다. 중계 호출에서 일반 코딩 지시문과 스킬 목록을 제외합니다.
 
 로컬 점검에서 **자동 삽입 컨텍스트가 11,133자 → 821자**로 줄었습니다. 이는 전체 토큰이나 비용이 93% 줄었다는 뜻은 아닙니다. 이미지·도구 토큰과 런타임 지시문은 여전히 사용됩니다. [측정 범위](docs/validation.md)를 확인하세요.
 

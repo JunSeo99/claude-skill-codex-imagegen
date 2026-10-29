@@ -16,6 +16,13 @@ A Claude Code skill for turning a rough idea into reviewed image files using you
 
 ```bash
 npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen --skill codex-imagegen
+
+# Or install it as a Claude Code plugin (updates through the plugin manager):
+claude plugin marketplace add JunSeo99/claude-skill-codex-imagegen
+claude plugin install codex-imagegen@codex-imagegen
+
+# Check Codex readiness (no model call):
+python3 skill/scripts/codex_status.py
 ```
 
 > “Give me two visual directions for a coffee brand. Keep building the page while they generate.”
@@ -45,7 +52,7 @@ No mandatory interview for a clear request. No extra variations when you asked f
 
 ## Get started
 
-You need **Claude Code**, **Python 3.9+**, and **Codex CLI 0.153.4+** on macOS or Linux, with an active Codex login.
+You need **Claude Code**, **Python 3.9+**, and **Codex CLI 0.164.0+** on macOS or Linux, with an active Codex login.
 
 ```bash
 # If Codex is not installed yet:
@@ -92,7 +99,7 @@ python3 skill/scripts/image_project.py \
 python3 skill/scripts/image_project.py --out-dir output/hero-v1 --status
 ```
 
-For multiple directions, supply a [small JSON plan](tests/prompts/demo/plan.json) with `--plan` and optionally `--workers 2`. Each brief starts with `$imagegen`. Use `--dry-run` to validate without generating.
+For multiple directions, supply a [small JSON plan](tests/prompts/demo/plan.json) with `--plan` and optionally `--workers 2`. Use `--dry-run` to validate without generating.
 
 Outputs include separate PNGs, `index.html`, `manifest.json`, and `worker.log`. Successful candidates survive failures. After inspecting the error, `--resume` verifies and skips completed images. It never restarts the whole set automatically. Keep the machine awake; background jobs are local processes, not cloud queues. Hosts that terminate detached processes may require their own background-task facility.
 
@@ -101,7 +108,7 @@ Outputs include separate PNGs, `index.html`, `manifest.json`, and `worker.log`. 
 **Claude makes the decisions. Codex receives the finished brief.**
 
 - A compact skill entrypoint loads only the reference needed for the current task.
-- The relay uses `gpt-5.6-luna` with reasoning `none` by default.
+- The relay uses `gpt-6-luna` with reasoning `none` by default.
 - General coding instructions are replaced by a short image-only relay instruction. The skills catalog and unrelated capabilities are disabled for that subprocess.
 - Interviews, art direction, quality review, galleries, and status checks do not start another Codex conversation.
 - A rejected relay does not silently upgrade to a heavier model. Completed images are not regenerated on resume.

@@ -1,0 +1,16 @@
+{
+  "name": "codex-imagegen",
+  "owner": {
+    "name": "JunSeo99"
+  },
+  "metadata": {
+    "description": "Claude Code skill that generates images through your Codex subscription."
+  },
+  "plugins": [
+    {
+      "name": "codex-imagegen",
+      "source": "./",
+      "description": "Create and refine images from Claude Code using a Codex subscription."
+    }
+  ]
+}

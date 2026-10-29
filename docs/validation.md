@@ -3,7 +3,52 @@
 Recorded 2026-09-09 on macOS with codex-cli 0.153.4. No separately billed image
 API was used. Image backend identity is not reported by this subscription path.
 
-## Live generation and editing
+## Re-validation on codex-cli 0.164.0 (2026-10-25)
+
+Relay `gpt-6-luna`, reasoning `none`, same isolation flags as the launcher, with the
+transparency line in the relay instructions. Two jobs ran in parallel on macOS.
+
+| Brief | Time | Relay tokens | Result |
+|---|---:|---:|---|
+| 16:9 product hero (terracotta cup) | 22 s | 37,075 | 1672×941 RGB; composition and light match the brief |
+| Transparent 1:1 icon cutout (brass compass) | 52 s | 13,083 | 1254×1254 RGBA; 48% fully transparent pixels, all four corners alpha 0; faint colored fringe on the outline |
+
+A tool-schema probe with no image generation reported `image_gen__imagegen` with
+`prompt`, `referenced_image_paths`, `num_last_images_to_include` and the new
+`transparent_background`. The probe used 9,547 tokens. Relay token counts vary widely
+between calls and are well above the 0.153.4 figures below, so treat them as samples.
+The rollout explains the size: each model request carried about 10,800 input tokens
+(Codex system instructions and tool schemas), and an image run needs at least two
+requests (call the tool, then answer). Codex's `tokens used` counts uncached tokens,
+so a run with good cache reuse reports about 11,000 and one with extra requests or
+cache misses can reach 37,000. The image generation itself is charged separately.
+
+The rollout also showed what filled those 10,800 tokens: Codex injected its whole
+built-in `imagegen` skill (19,274 characters) because the brief began with `$imagegen`,
+plus permission and collaboration instructions. The launcher now strips the
+`$imagegen` mention and sets `include_permissions_instructions=false` and
+`include_collaboration_mode_instructions=false`. A live run afterwards still called
+the image tool with `transparent_background: true`, and input per request fell to
+about 5,900 tokens (−45%). Codex still adds a multi-agent role note (about 2,400
+characters, despite `--disable multi_agent`) and the user's global `AGENTS.md`;
+no setting to drop those was found.
+The relay often reported an empty or invented path (`""`,
+`$CODEX_HOME/generated_images/red_origami_fox.png`) although the image was saved.
+A saved session rollout shows why: on 0.164.0 the relay calls the image tool from
+Codex's JavaScript `exec` code-mode wrapper and printed only the result's text
+parts, which carry no path, so the model never saw where the file went. The rollout
+also confirms `transparent_background: true` was passed for a transparent brief. The launcher now
+reads the PNGs from `generated_images/<session id>/`, using the `session id:` header
+Codex prints, and only falls back to the model-reported paths. A transparent sticker
+then passed `verify_png_alpha.py --require-transparent-corners` end to end (44 s,
+11,088 relay tokens). In both transparent outputs the subject's alpha was mostly
+250–254, not 255, so cutouts are about 1–2% see-through.
+
+`gpt-6-luna` and `gpt-5.6-luna` both accept reasoning `none`, although
+`codex debug models` does not list it. `skip_host_skill_discovery` is still an
+under-development feature and prints a warning on stderr.
+
+## Live generation and editing (0.153.4)
 
 | Artifact | Input | Result |
 |---|---|---|
@@ -61,7 +106,7 @@ python3 -m unittest discover -s tests -v
 python3 scripts/package_skill.py --check
 ```
 
-25 tests cover alpha decoding, environment isolation, structured-path validation,
+30 tests cover the Codex status check, alpha solidify, `$imagegen` stripping, alpha decoding, environment isolation, structured-path validation,
 disguised/symlink PNG rejection, minimal relay defaults, opt-in relay fallback,
 plan preflight, stable input hashes, interrupted batches, verified resume, gallery
 escaping, background dispatch, local status, and bounded concurrency.

@@ -42,3 +42,4 @@ jobs:
           python skill/scripts/run_codex_imagegen.py --help
           python skill/scripts/verify_png_alpha.py --help
           python skill/scripts/image_project.py --help
+          python skill/scripts/solidify_png_alpha.py --help

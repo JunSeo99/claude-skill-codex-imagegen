@@ -2,6 +2,29 @@
 
 All notable changes to this project are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Default relay is now `gpt-6-luna` (reasoning `none`), verified on codex-cli 0.164.0.
+- Minimum/verified Codex CLI raised to 0.164.0.
+- Briefs no longer need `$imagegen`; the launcher strips it, because the mention made Codex inject its whole imagegen skill into every relay request. With permission and collaboration instructions also disabled, input per relay request fell from about 10,800 to 5,900 tokens.
+- Output PNGs are read from `generated_images/<session id>/`, using the session id from Codex's stderr header; model-reported paths are only a fallback.
+- Relay instructions set the built-in tool's new `transparent_background` flag when the brief asks for a transparent background.
+- Transparency guidance updated: a 0.164.0 cutout returned real RGBA with clear corners; check outline fringes.
+- Validation notes record 0.164.0 results and much higher, variable relay token counts than the 0.153.4 measurement.
+
+### Added
+
+- `.claude-plugin/plugin.json` and `marketplace.json`: install as a Claude Code plugin; `npx skills add` keeps working.
+- `skill/scripts/codex_status.py`: Codex version, login, and relay-model check without a model call.
+- `skill/scripts/solidify_png_alpha.py`: writes a copy with near-opaque alpha raised to 255 (subjects come back at alpha 250–254).
+- SKILL.md asks Claude to save the final brief next to each exported image as `<image-name>.md`.
+
+### Fixed
+
+- On codex-cli 0.164.0 the relay calls the image tool through the code-mode `exec` wrapper and often never sees the saved path, so it returned empty or invented paths and the launcher refused every generation although the image had been saved.
+
 ## [0.3.0] - 2026-09-10
 
 ### Added

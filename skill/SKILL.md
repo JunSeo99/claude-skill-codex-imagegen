@@ -7,7 +7,7 @@ description: Create and refine image files from Claude Code using a Codex subscr
 
 Claude directs and reviews; Codex only generates. Use the user's Codex subscription;
 never use a separately billed image API. Requires Python 3.9+, macOS/Linux, and
-logged-in Codex CLI 0.153.4+ (`codex login`). Resolve `<SKILL_DIR>` from this file.
+logged-in Codex CLI 0.164.0+ (`codex login`). Resolve `<SKILL_DIR>` from this file.
 
 ## Route by intent
 
@@ -18,7 +18,7 @@ logged-in Codex CLI 0.153.4+ (`codex login`). Resolve `<SKILL_DIR>` from this fi
 | “Options”, “시안”, multiple directions | Default to 3 distinct candidates if count is unspecified | [directions.md](references/directions.md) |
 | Change an existing image | Inspect it, state change + preserve list, attach it | [editing.md](references/editing.md) |
 | Exact text, photography, complex composition | Add only the relevant craft details | [prompting-guide.md](references/prompting-guide.md) |
-| Model question or execution failure | Explain verified capability or fix the failure | [cli-reference.md](references/cli-reference.md) |
+| Model question or execution failure | Run `scripts/codex_status.py` (no model call), then explain or fix | [cli-reference.md](references/cli-reference.md) |
 
 Do not load every reference, repository documentation, or launcher source. Reuse
 answers and relevant project style facts already in context. Read `DESIGN.md` only
@@ -32,7 +32,6 @@ user direction; omit irrelevant fields. Aim for 80–180 words for a normal imag
 shorter for a local edit; exact copy and necessary preservation rules take priority.
 
 ```text
-$imagegen
 Asset: website hero, landscape 16:9, one image
 Request: a handmade terracotta cup on pale limestone
 Look: editorial product photograph; soft window light from the left;
@@ -63,7 +62,7 @@ wait using the host's background-task mechanism and check at sensible intervals.
 Multi-image plans use two workers by default (1–4 configurable); see directions.md.
 The underlying `run_codex_imagegen.py` remains available for foreground execution.
 
-The launcher defaults to the lightweight `gpt-5.6-luna` relay with reasoning `none`,
+The launcher defaults to the lightweight `gpt-6-luna` relay with reasoning `none`,
 compact relay instructions, no skills catalog, and unrelated tools disabled.
 `--model` selects the text relay, NOT an image model. Flare favors speed; Sunburst
 favors demanding quality and precise edits. The Codex built-in tool manages its
@@ -72,19 +71,23 @@ model, API quality setting, native 4K, or pixel-perfect preservation was used.
 
 Copy only validated stdout PNG paths to the user's destination or
 `output/imagegen/<purpose>/`. Preserve originals; use versioned filenames for edits.
+Save the final brief beside each exported image as `<image-name>.md` so it can be
+reproduced; skip this when the brief contains confidential material.
 Inspect the image using Claude's image-reading tool at full view and relevant detail.
 Check intent, composition, literal text, anatomy/product geometry, preserved details,
 and edges. A valid path is not a quality pass. State any visible unresolved defect.
 
-If transparency is requested, run:
+If transparency is requested, say "transparent background" in the brief (the relay
+then sets the tool's `transparent_background` flag), and afterwards run:
 
 ```bash
 python3 "<SKILL_DIR>/scripts/verify_png_alpha.py" --require-transparent-corners "<PNG>"
 ```
 
-Use the corners flag for isolated cutouts only. Do not mistake checkerboard pixels
+If the subject must be fully solid (alpha is often 250–254), write a copy with
+`scripts/solidify_png_alpha.py <PNG> <OUT.png>`. Use the corners flag for isolated cutouts only. Do not mistake checkerboard pixels
 for alpha. See editing.md for transparent edits. Measure actual dimensions before
-export; the older 0.153.2 baseline was ≈1.57 MP, not a current resolution guarantee.
+export; 0.153.2 and 0.164.0 both returned ≈1.57 MP, which is not a resolution guarantee.
 Resize proportionally; crop/pad intentionally, never stretch. Label upscaling honestly.
 
 Generate only the requested count. Allow at most one targeted repair per rejected

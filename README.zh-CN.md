@@ -31,7 +31,7 @@ npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen --skill c
 
 ## 安装要求
 
-macOS/Linux、Python 3.9+、Claude Code，以及已登录的 Codex CLI 0.153.4+。
+macOS/Linux、Python 3.9+、Claude Code，以及已登录的 Codex CLI 0.164.0+。
 
 ```bash
 npm install -g @openai/codex
@@ -49,11 +49,11 @@ python3 skill/scripts/image_project.py --prompt-file brief.txt --out-dir output/
 python3 skill/scripts/image_project.py --out-dir output/hero-v1 --status
 ```
 
-提示词以 `$imagegen` 开头。多个方案可用 `--plan` 传入[JSON 计划](tests/prompts/demo/plan.json)。
+多个方案可用 `--plan` 传入[JSON 计划](tests/prompts/demo/plan.json)。
 
 ## 精简上下文，明确能力边界
 
-Claude 负责访谈、构思与检查；Codex 只接收完成后的简短图片指令。默认中继模型为 `gpt-5.6-luna`，推理设为 `none`，省去通用编码指令和技能目录。[验证记录](docs/validation.md)中的上下文缩减不代表总 token 或成本同比例下降。
+Claude 负责访谈、构思与检查；Codex 只接收完成后的简短图片指令。默认中继模型为 `gpt-6-luna`，推理设为 `none`，省去通用编码指令和技能目录。[验证记录](docs/validation.md)中的上下文缩减不代表总 token 或成本同比例下降。
 
 官方将 [Flare](https://developers.openai.com/api/docs/models/gpt-image-2.5-flare)定位为快速日常生成，将 [Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst)定位为高质量生成与精细编辑。但**当前订阅路径无法固定选择这两个模型**。`--model` 设置的是文本中继模型，不是图片模型。没有切换到付费图片 API 的路径。
 

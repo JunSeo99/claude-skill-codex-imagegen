@@ -89,6 +89,20 @@ class AlphaValidatorTests(unittest.TestCase):
             self.assertEqual(metrics["corner_alpha"], [0, 0, 0, 0])
             self.assertEqual(metrics["partial_pixels"], 1)
 
+    def test_solidify_raises_near_opaque_alpha_only(self) -> None:
+        solidify = load_module("solidify_png_alpha", SKILL / "scripts" / "solidify_png_alpha.py")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "cutout.png"
+            write_rgba_png(source, 2, 2, [(1, 2, 3, 0), (1, 2, 3, 120), (1, 2, 3, 251), (1, 2, 3, 255)])
+            png, changed = solidify.solidify(source, 240)
+            output = Path(temp_dir) / "solid.png"
+            output.write_bytes(png)
+            metrics = ALPHA.inspect_alpha(output, require_transparent_corners=False)
+            self.assertEqual(changed, 1)
+            self.assertEqual(
+                (metrics["transparent_pixels"], metrics["partial_pixels"], metrics["opaque_pixels"]), (1, 1, 2)
+            )
+
     def test_rejects_opaque_png(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "opaque.png"
@@ -152,12 +166,57 @@ class LauncherBoundaryTests(unittest.TestCase):
             self.assertIn(required, source)
         self.assertNotIn("shell" + "=True", source)
 
+    def test_session_directory_is_used_instead_of_model_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir).resolve()
+            session = root / "01a17317-f8b2-7b32-9303-b424e92e5cf0"
+            session.mkdir()
+            image = session / "exec-1.png"
+            image.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 8)
+            (session / "notes.txt").write_text("x")
+            (session / "fake.png").write_bytes(b"not a png")
+            stderr = "model: gpt-6-luna\nsession id: 01a17317-f8b2-7b32-9303-b424e92e5cf0\n"
+            self.assertEqual(RUNNER.session_generated_paths(stderr, root), [image])
+            self.assertEqual(RUNNER.session_generated_paths("session id: ../etc\n", root), [])
+            self.assertEqual(RUNNER.session_generated_paths("no header\n", root), [])
+
+    def test_imagegen_mention_is_stripped(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            brief = Path(temp_dir) / "brief.txt"
+            brief.write_text("$imagegen\nOne cup. Not a $imagegen skill call.\n", encoding="utf-8")
+            self.assertEqual(RUNNER.read_prompt(str(brief)), "One cup. Not a imagegen skill call.")
+
+    def test_status_reports_ready_without_model_calls(self) -> None:
+        status = load_module("codex_status", SKILL / "scripts" / "codex_status.py")
+        replies = {
+            "--version": "codex-cli 0.164.0",
+            "login": "Logged in using ChatGPT",
+            "debug": json.dumps({"models": [{"slug": "gpt-6-luna"}]}),
+        }
+        calls = []
+
+        def fake_run(*args: str) -> str:
+            calls.append(args[1:])
+            return replies[args[1]]
+
+        with mock.patch.object(status.shutil, "which", return_value="codex"), \
+            mock.patch.object(status, "run", side_effect=fake_run), \
+            mock.patch("sys.stdout", new_callable=io.StringIO) as stdout:
+            with self.assertRaises(SystemExit) as exit_info:
+                status.main()
+        self.assertEqual(exit_info.exception.code, 0)
+        self.assertIn("Ready: yes", stdout.getvalue())
+        self.assertNotIn("exec", [call[0] for call in calls])
+
+    def test_relay_requests_native_transparency(self) -> None:
+        self.assertIn("transparent_background=true", RUNNER.RELAY_INSTRUCTIONS)
+
     def test_model_arguments(self) -> None:
         self.assertEqual(RUNNER.model_arguments(None, None), [])
-        self.assertEqual(RUNNER.model_arguments("gpt-5.6-luna", None), ["-m", "gpt-5.6-luna"])
+        self.assertEqual(RUNNER.model_arguments("gpt-6-luna", None), ["-m", "gpt-6-luna"])
         self.assertEqual(
-            RUNNER.model_arguments("gpt-5.6-luna", "none"),
-            ["-m", "gpt-5.6-luna", "-c", 'model_reasoning_effort="none"'],
+            RUNNER.model_arguments("gpt-6-luna", "none"),
+            ["-m", "gpt-6-luna", "-c", 'model_reasoning_effort="none"'],
         )
 
     def test_codex_error_message_reads_only_the_structured_error(self) -> None:
@@ -252,10 +311,11 @@ class LauncherBoundaryTests(unittest.TestCase):
                     RUNNER.main()
             self.assertEqual(run.call_count, 1)
             command = run.call_args.args[0]
-            self.assertEqual(command[command.index("-m") + 1], "gpt-5.6-luna")
+            self.assertEqual(command[command.index("-m") + 1], "gpt-6-luna")
             self.assertIn('model_reasoning_effort="none"', command)
             self.assertIn("skills.include_instructions=false", command)
-            self.assertEqual(run.call_args.kwargs["input"], "$imagegen\nOne image of a cup.")
+            self.assertEqual(run.call_args.kwargs["input"], "One image of a cup.")
+            self.assertIn("include_permissions_instructions=false", command)
 
     def test_rejects_disguised_png_and_symlink(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

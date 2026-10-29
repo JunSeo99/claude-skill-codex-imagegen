@@ -7,7 +7,7 @@ Give candidates short names and stable IDs. Each must be a separate full-size im
 not panels painted into one generated contact sheet. No extra final render before
 the user selects unless they explicitly delegated selection.
 
-Write one short `$imagegen` brief per candidate, then a JSON plan. Paths are relative
+Write one short brief per candidate, then a JSON plan. Paths are relative
 to the plan file; all inputs are validated before the first generation call.
 
 ```json

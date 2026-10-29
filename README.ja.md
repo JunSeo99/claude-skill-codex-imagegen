@@ -31,7 +31,7 @@ npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen --skill c
 
 ## セットアップ
 
-macOS/Linux、Python 3.9+、Claude Code、ログイン済みのCodex CLI 0.153.4+が必要です。
+macOS/Linux、Python 3.9+、Claude Code、ログイン済みのCodex CLI 0.164.0+が必要です。
 
 ```bash
 npm install -g @openai/codex
@@ -49,11 +49,11 @@ python3 skill/scripts/image_project.py --prompt-file brief.txt --out-dir output/
 python3 skill/scripts/image_project.py --out-dir output/hero-v1 --status
 ```
 
-プロンプトの先頭は`$imagegen`です。複数案は[JSONプラン](tests/prompts/demo/plan.json)を`--plan`で指定します。
+複数案は[JSONプラン](tests/prompts/demo/plan.json)を`--plan`で指定します。
 
 ## 小さなコンテキスト、明確な対応範囲
 
-Claudeが企画と確認を担当し、Codexには完成した短い指示だけを渡します。中継モデルは標準で`gpt-5.6-luna`、推論は`none`。一般的なコーディング指示とスキル一覧を省きます。[検証](docs/validation.md)で確認したコンテキスト削減は、総トークンや料金の削減率を保証するものではありません。
+Claudeが企画と確認を担当し、Codexには完成した短い指示だけを渡します。中継モデルは標準で`gpt-6-luna`、推論は`none`。一般的なコーディング指示とスキル一覧を省きます。[検証](docs/validation.md)で確認したコンテキスト削減は、総トークンや料金の削減率を保証するものではありません。
 
 公式には[Flare](https://developers.openai.com/api/docs/models/gpt-image-2.5-flare)は速度重視、[Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst)は品質と精密な編集を重視します。ただし、**このサブスクリプション経路では両モデルを固定できません**。`--model`はテキスト中継モデルの設定です。有料APIへ切り替える経路はありません。
 

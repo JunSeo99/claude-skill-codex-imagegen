@@ -43,6 +43,13 @@ implementation and do not add an inert model-selection flag. If a future probe
 exposes a real selector, use its exact parameter and accepted values. Do not run a
 capability interview before every image; check only when explicitly needed.
 
+### Re-check on codex-cli 0.164.0 — 2026-10-25
+
+The same probe on 0.164.0 (`gpt-6-luna`, reasoning `none`) reported a fourth tool
+parameter, `transparent_background: boolean|null`. There is still no image-model
+parameter. The relay instructions now ask for `transparent_background=true` when the
+brief requests a transparent background.
+
 ## Decisions for people using Claude Code
 
 - Clear brief: execute immediately, with no mandatory questionnaire.
