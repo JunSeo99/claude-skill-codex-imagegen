@@ -1,7 +1,18 @@
-# Validation — v0.3.0
+# Validation — v0.4.0
 
-Recorded 2026-09-09 on macOS with codex-cli 0.153.4. No separately billed image
-API was used. Image backend identity is not reported by this subscription path.
+Recorded on macOS with a ChatGPT-login Codex subscription, newest first; the
+original v0.3.0 baseline used codex-cli 0.153.4 (2026-09-09). No separately billed
+image API was used. Image backend identity is not reported by this subscription path.
+
+## Re-check on codex-cli 0.166.0 (2026-11-02)
+
+The v0.4.0 launcher, defaults only (`gpt-6-luna`, reasoning `none`), ran
+`tests/prompts/transparent-e2e.txt` once: 55 s, 8,546 relay tokens, one PNG found
+under `generated_images/<session id>/`. Result: 1316×1195 RGBA, all four corners
+alpha 0, `verify_png_alpha.py --require-transparent-corners` passed. Subject alpha
+was again mostly 250–254; `solidify_png_alpha.py` raised 499,296 pixels to 255 and
+the copy still passed. Faint stray specks of the subject color remained outside the
+outline in both the original and the solidified copy, so inspect cutouts visually.
 
 ## Re-validation on codex-cli 0.164.0 (2026-10-25)
 

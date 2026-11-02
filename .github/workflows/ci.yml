@@ -15,7 +15,8 @@ concurrency:
 jobs:
   security-and-package:
     name: Security and package (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest (26.04) has no setup-python build for 3.9, the minimum we support.
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     strategy:
       fail-fast: false

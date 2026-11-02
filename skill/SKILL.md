@@ -71,8 +71,9 @@ model, API quality setting, native 4K, or pixel-perfect preservation was used.
 
 Copy only validated stdout PNG paths to the user's destination or
 `output/imagegen/<purpose>/`. Preserve originals; use versioned filenames for edits.
-Save the final brief beside each exported image as `<image-name>.md` so it can be
-reproduced; skip this when the brief contains confidential material.
+Keep the final brief as `output/imagegen/<purpose>/<image-name>.md` so it can be
+reproduced, even when the PNG goes elsewhere. Never write briefs into the user's
+destination; asset folders such as `public/` are often served. Skip confidential briefs.
 Inspect the image using Claude's image-reading tool at full view and relevant detail.
 Check intent, composition, literal text, anatomy/product geometry, preserved details,
 and edges. A valid path is not a quality pass. State any visible unresolved defect.
