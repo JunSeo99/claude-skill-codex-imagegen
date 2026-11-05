@@ -1,0 +1,6 @@
+Asset: empty-state illustration for a notes app ("No notes yet"); square 1:1; one image; the message is set by the app, not in the image
+Image 1: style and object reference; keep its container design, material, palette, and light
+Request: the same low tray from Image 1, now empty except for one blank paper-white card lying flat inside, ready to be written on; the card's small tab is the yellow detail
+Style lock: soft matte 3D render, studio quality; paper-white main forms with fine paper tooth, deep ink navy (#1F2A44) secondary parts, signal yellow (#FFC93C) on exactly one small detail; key light from top left, soft ambient occlusion, rounded edges; a simple bold silhouette that reads at 28 px
+Composition: the container fills about half the frame, centered slightly low; full-bleed deep ink navy (#1F2A44) background with a subtle vignette
+Constraints: no readable writing, letters, numbers, logos, UI, people, motion lines, or extra props; no watermark

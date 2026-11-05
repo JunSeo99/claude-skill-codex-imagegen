@@ -1,8 +1,33 @@
-# Validation — v0.4.0
+# Validation — v1.0.0
 
 Recorded on macOS with a ChatGPT-login Codex subscription, newest first; the
 original v0.3.0 baseline used codex-cli 0.153.4 (2026-09-09). No separately billed
 image API was used. Image backend identity is not reported by this subscription path.
+
+## Re-check after Images 2.6 on codex-cli 0.166.0 (2026-11-05)
+
+OpenAI announced Images 2.6 on 2026-11-04 and said it is available in Codex. On
+0.166.0 (still the latest stable CLI) a tool-schema probe with no generation listed
+the same four `image_gen.imagegen` parameters and no model, quality, size, or format
+control (9,452 tokens). Defaults only (`gpt-6-luna`, reasoning `none`):
+
+| Brief | Time | Result |
+|---|---:|---|
+| 16:9 product hero (terracotta cup), launcher | 29 s | 1672×941 RGB, 13,124 relay tokens |
+| Transparent 1:1 icon (brass compass) | 63 s | 1254×1254 RGBA |
+| Cutout edit of a packaged-product photo with dense label text | background job | 1254×1254 RGBA, corners clear, every label word correct; the bag came back larger in the frame |
+| Cutout edit of a studio product photo (the retired 0.153.4 demo) | background job | 1448×1086 RGBA, framing and handle hole preserved |
+| `tests/prompts/transparent-e2e.txt` (rewritten brief) | background job | 1254×1254 RGBA, `--require-transparent-corners` passed |
+
+Sizes match 0.153.2 and 0.164.0, and timings are not faster, but one sample cannot
+identify the backend. Responses carry no model field and the C2PA manifest reads only
+`ChatGPT` / `gpt-image`, so outputs are still not labeled with a model. A brief asking
+for an animated GIF returned a still PNG. The 0.168.0-alpha.2 client adds a `gif`
+option behind `features.image_generation_animation`; with it enabled the server
+answered HTTP 400 “GIF output is not enabled for this request.”
+
+The 0.153.4 demo briefs began with `$imagegen`, which the launcher has stripped
+since 0.4.0; the current demo briefs do not use it.
 
 ## Re-check on codex-cli 0.166.0 (2026-11-02)
 
@@ -32,7 +57,8 @@ The rollout explains the size: each model request carried about 10,800 input tok
 (Codex system instructions and tool schemas), and an image run needs at least two
 requests (call the tool, then answer). Codex's `tokens used` counts uncached tokens,
 so a run with good cache reuse reports about 11,000 and one with extra requests or
-cache misses can reach 37,000. The image generation itself is charged separately.
+cache misses can reach 37,000. The image generation itself draws on the Codex
+allowance separately; nothing is billed to an API account.
 
 The rollout also showed what filled those 10,800 tokens: Codex injected its whole
 built-in `imagegen` skill (19,274 characters) because the brief began with `$imagegen`,
@@ -59,30 +85,29 @@ then passed `verify_png_alpha.py --require-transparent-corners` end to end (44 s
 `codex debug models` does not list it. `skip_host_skill_discovery` is still an
 under-development feature and prints a warning on stderr.
 
-## Live generation and editing (0.153.4)
+## README demo (codex-cli 0.166.0, 2026-11-05)
 
-| Artifact | Input | Result |
+Both steps ran as detached background plans with the default relay. Images are
+committed downscaled for the README (directions and empty state to 640 px, icons
+to 320 px) without retouching.
+
+| Step | Briefs and plan | Result |
 |---|---|---|
-| [Studio photograph](../assets/demo/a-studio.png) | [a.txt](../tests/prompts/demo/a.txt) | 1448×1086 PNG; subject, warm light, limestone and negative space visually checked |
-| [Paper direction](../assets/demo/b-paper.png) | [b.txt](../tests/prompts/demo/b.txt) | 1448×1086 PNG; distinct paper medium and graphic composition visually checked |
-| [Green edit](../assets/demo/a-studio-v2.png) | Studio image + [edit.txt](../tests/prompts/demo/edit.txt) | 1448×1086 PNG; green glaze applied, overall framing/background retained |
+| Three onboarding directions | [plan.json](../tests/prompts/demo/plan.json): [a-ink](../tests/prompts/demo/a-ink.txt), [b-riso](../tests/prompts/demo/b-riso.txt), [c-papercraft](../tests/prompts/demo/c-papercraft.txt) | 3 × 1254×1254 RGB; distinct palettes and value structures, one focal subject each, no lettering |
+| Set in direction A | [set-plan.json](../tests/prompts/demo/set-plan.json): four icons and an empty state, each repeating the same style lock with direction A attached as style reference | 4 icons 1254×1254 RGBA, `--require-transparent-corners` passed; empty state 1254×1254 RGB |
 
-The green edit is a visual preservation example, not a pixel-identity guarantee.
-Glaze highlights and texture changed slightly. Images are committed at returned
-resolution, without post-generation retouching. The examples do not establish
-performance differences between Flare and Sunburst.
+A first attempt with only a named style and cream-on-cream palette produced muddy,
+cluttered images; the art-direction section in `prompting-guide.md` came from that
+comparison. The set plan's reference points at the committed 640 px copy; the run
+itself attached the full-resolution direction image. Visible limits: the search
+icon's lens reads as glossier glass than the matte set, and the folder resembles
+the tray. A second set in direction C was also generated for comparison and kept
+out of the repository.
 
-The paper direction and green edit ran together using the actual detached worker
-with two slots. The launch command returned a job handle while the worker continued;
-other repository edits proceeded before generation finished. Both outputs were
-saved within approximately **72 seconds** of the worker entering its running state.
-One measured batch is not a latency guarantee.
-
-An initial standalone studio attempt generated an image but its final result did
-not pass the launcher's structured-path validation. It was rejected rather than
-copied. A manually inspected development retry passed. Thus development included
-four live image calls, with three accepted artifacts. No automatic failure loop was
-used; the rejected result is not included as a successful example.
+Earlier demos (codex-cli 0.153.4, 2026-09-09) used a studio photograph, a paper
+illustration, and a color edit of the same product; they were retired in 1.0.0.
+That run measured about **72 seconds** for two detached jobs in parallel, and one
+standalone attempt was rejected by path validation rather than copied.
 
 ## Context and token scope
 
@@ -141,7 +166,8 @@ validates current output and treats that older failure as a dated observation.
 
 ## Known transport boundaries
 
-- Codex manages the image model; this launcher cannot pin Flare or Sunburst.
+- Codex picks the image model server-side; this launcher cannot select or identify
+  it (GPT Image 2, 2.5, or 2.6; Flare or Sunburst).
 - Jobs run on the local machine and do not survive shutdown or all host process
   cleanup policies. There is no external queue or push-notification service.
 - Parallelism shortens waiting when the account allows it; it does not reduce tokens

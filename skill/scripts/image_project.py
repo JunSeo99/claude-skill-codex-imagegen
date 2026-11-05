@@ -85,9 +85,20 @@ def save_state(target: Path, state: dict, plan: dict) -> None:
     gallery(plan, state, target)
 
 
-def generate_one(job: dict, target: Path) -> dict:
+def relay_arguments(args: argparse.Namespace) -> list[str]:
+    """Launcher flags to forward; unset values keep the launcher defaults (gpt-6-luna, effort none, 300 s)."""
+    forwarded = []
+    for flag, value in (("--model", args.model), ("--reasoning-effort", args.reasoning_effort), ("--timeout", args.timeout)):
+        if value is not None:
+            forwarded += [flag, str(value)]
+    if args.allow_default_model_fallback:
+        forwarded.append("--allow-default-model-fallback")
+    return forwarded
+
+
+def generate_one(job: dict, target: Path, relay_args: list[str] | tuple = ()) -> dict:
     command = [sys.executable, str(SCRIPTS / "run_codex_imagegen.py"),
-               "--prompt-file", job["prompt_file"], "--stats"]
+               "--prompt-file", job["prompt_file"], "--stats", *relay_args]
     for image in job["images"]:
         command += ["--image", image]
     result = subprocess.run(command, stdout=subprocess.PIPE, text=True, check=False)
@@ -104,7 +115,7 @@ def generate_one(job: dict, target: Path) -> dict:
             "image_model": "managed by Codex; not reported", "review": "pending"}
 
 
-def run_jobs(plan: dict, state: dict, target: Path, workers: int) -> None:
+def run_jobs(plan: dict, state: dict, target: Path, workers: int, relay_args: list[str] | tuple = ()) -> None:
     pending_jobs = iter([j for j in plan["jobs"] if j["id"] not in state["completed"]])
     state.update(status="running", pid=os.getpid(), errors={}, running=[])
     save_state(target, state, plan)
@@ -113,7 +124,7 @@ def run_jobs(plan: dict, state: dict, target: Path, workers: int) -> None:
         def submit_next() -> None:
             job = next(pending_jobs, None)
             if job:
-                active[pool.submit(generate_one, job, target)] = job["id"]
+                active[pool.submit(generate_one, job, target, relay_args)] = job["id"]
         for _ in range(workers):
             submit_next()
         while active:
@@ -147,7 +158,18 @@ def main() -> None:
     parser.add_argument("--background", action="store_true", help="Detach worker and return immediately")
     parser.add_argument("--status", action="store_true", help="Read local job status without calling Codex")
     parser.add_argument("--workers", type=int, choices=range(1, 5), default=2)
+    relay = parser.add_argument_group("relay (forwarded to run_codex_imagegen.py; defaults recommended)")
+    relay.add_argument("--model", help="Codex text relay, NOT an image model (default: gpt-6-luna)")
+    relay.add_argument("--reasoning-effort", help="Relay reasoning effort (default: none)")
+    relay.add_argument("--timeout", type=int, help="Seconds per image before Codex is stopped (default: 300)")
+    relay.add_argument("--allow-default-model-fallback", action="store_true",
+                       help="Allow one retry on the account default relay if the chosen relay is rejected")
     args = parser.parse_args()
+    for name, value in (("--model", args.model), ("--reasoning-effort", args.reasoning_effort)):
+        if value is not None and (not value.strip() or any(c in value for c in '"\\\n\r')):
+            parser.error(f"{name} must be a non-empty single-line value without quotes")
+    if args.timeout is not None and args.timeout <= 0:
+        parser.error("--timeout must be positive")
     target = Path(args.out_dir).expanduser().absolute()
     if target.is_symlink():
         parser.error("out-dir must not be a symlink")
@@ -203,7 +225,7 @@ def main() -> None:
             state.update(status="queued", pid=None)
             save_state(target, state, plan)
             command = [sys.executable, str(Path(__file__).resolve()), "--plan", str(snapshot),
-                       "--out-dir", str(target), "--resume", "--workers", str(args.workers)]
+                       "--out-dir", str(target), "--resume", "--workers", str(args.workers), *relay_arguments(args)]
             # Child must acquire the lock; release it before spawning.
             fcntl.flock(lock, fcntl.LOCK_UN)
             with (target / "worker.log").open("a") as log:
@@ -212,7 +234,7 @@ def main() -> None:
             print(json.dumps({"status": "started", "pid": child.pid, "job_dir": str(target),
                               "gallery": str(target / "index.html"), "total": len(plan["jobs"])}))
             return
-        run_jobs(plan, state, target, args.workers)
+        run_jobs(plan, state, target, args.workers, relay_arguments(args))
         print(json.dumps({"status": state["status"], "gallery": str(target / "index.html"),
                           "completed": len(state["completed"]), "total": len(plan["jobs"])}))
         if state["status"] == "failed":

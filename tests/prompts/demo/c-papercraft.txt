@@ -1,0 +1,5 @@
+Asset: onboarding illustration for a notes app, first screen; square 1:1; one image; the headline is set by the app, not in the image
+Request: a small open index-card box with white cards neatly filed upright, divided by a few deep-green divider tabs; one white card stands slightly taller than the rest
+Look: handmade cut-paper craft photographed in soft daylight; layered heavy paper with real cut edges and soft drop shadows between layers; palette of warm apricot (#F2A766) background, clean white cards, and deep green (#1E4D3A) dividers
+Composition: the box fills about 60% of the frame, centered, seen from a slight top-down angle; plain apricot paper background, full-bleed; nothing else in the scene
+Constraints: no readable writing, letters, numbers, logos, UI, people, motion lines, or extra props; no watermark

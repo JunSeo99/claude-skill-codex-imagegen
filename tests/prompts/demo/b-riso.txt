@@ -1,0 +1,5 @@
+Asset: onboarding illustration for a notes app, first screen; square 1:1; one image; the headline is set by the app, not in the image
+Request: an open notebook seen from above with three index cards rising out of it in a neat, evenly spaced fan, as if ideas are being sorted
+Look: two-color risograph print; cobalt ink (#2B4BCE) and vermilion ink (#F0462E) on warm off-white paper (#F3EEE4), with slight overprint where the inks overlap, visible riso grain, and a hint of misregistration; flat shapes, no outlines, no gradients
+Composition: the notebook and cards form one bold central shape filling about 60% of the frame; cobalt dominates, vermilion only on the topmost card; generous even margin
+Constraints: no readable writing, letters, numbers, logos, UI, people, motion lines, or scattered extra objects; no watermark

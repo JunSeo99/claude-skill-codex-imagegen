@@ -16,16 +16,25 @@
 
 ```bash
 npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen --skill codex-imagegen
+
+# 또는 Claude Code 플러그인으로 설치 (플러그인 관리자로 업데이트):
+claude plugin marketplace add JunSeo99/claude-skill-codex-imagegen
+claude plugin install codex-imagegen@codex-imagegen
 ```
 
-> “커피 브랜드 이미지 시안 두 개 만들어줘. 이미지 생성하는 동안 페이지 작업도 계속해줘.”
+> “메모 앱 온보딩 일러스트, 방향 세 개 보여줘.”
 
-| 01 · 스튜디오 사진 | 02 · 종이 일러스트 | 01 수정 · 녹색 유약 |
+| A · 잉크 네이비 무광 입체 | B · 2도 리소그래프 | C · 살구색 위 종이 공예 |
 |:---:|:---:|:---:|
-| ![석회석 위 테라코타 컵 사진](assets/demo/a-studio.png) | ![종이 질감을 살린 컵 일러스트](assets/demo/b-paper.png) | ![같은 구도에서 녹색으로 수정한 컵](assets/demo/a-studio-v2.png) |
-| 따뜻한 빛과 자연스러운 재질 | 선명한 형태와 종이 질감 | “구도는 그대로, 컵 색만 바꿔줘.” |
+| ![짙은 네이비 위 트레이에서 노란 탭 카드 한 장이 올라온 장면](assets/demo/notes-a-ink.png) | ![코발트와 버밀리언으로 인쇄한, 펼친 노트에서 솟는 카드](assets/demo/notes-b-riso.png) | ![살구색 배경 위 초록 디바이더가 꽂힌 종이 카드 상자](assets/demo/notes-c-papercraft.png) |
 
-이 저장소의 실행기로 실제 생성한 결과입니다. [프롬프트와 검증 기록](docs/validation.md)을 공개합니다. Codex가 이미지 모델을 관리하므로, 이 결과를 특정 GPT Image 모델의 출력이라고 표시하지 않습니다.
+> “A로 할게. 앱 아이콘이랑 빈 화면도 같은 스타일로 맞춰줘.”
+
+| 새 메모 | 폴더 | 검색 | 알림 | 빈 화면 |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="assets/demo/set-new-note.png" width="96" alt="New-note icon"> | <img src="assets/demo/set-folder.png" width="96" alt="Folder icon"> | <img src="assets/demo/set-search.png" width="96" alt="Search icon"> | <img src="assets/demo/set-reminder.png" width="96" alt="Reminder icon"> | <img src="assets/demo/set-empty.png" width="168" alt="Empty-state illustration"> |
+
+한 줄 요청마다 Claude가 아트 디렉션(명도 대비, 3색 역할, 하나의 주인공)을 담은 지시문을 쓰고, A의 스타일을 모든 에셋에 고정했으며, 보여주기 전에 투명 배경과 일관성을 검수했습니다. 이 저장소의 실행기로 실제 생성한 결과입니다. [지시문·계획·검증 기록](docs/validation.md)을 공개합니다. 이미지 모델은 Codex 서버가 고르므로 결과에 특정 GPT Image 버전을 표시하지 않습니다.
 
 ## 이렇게 요청하세요
 
@@ -36,14 +45,14 @@ npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen --skill c
 | 여러 시안 비교 | “서로 확실히 다른 방향으로 세 개 보여줘.” |
 | 선택한 이미지 수정 | “2번으로 할게. 배경만 짙은 남색으로 바꿔줘.” |
 | 투명 배경 | “상품 사진을 투명 PNG로 만들어줘.” |
-| 스타일 통일 | “이 이미지와 DESIGN.md를 기준으로 나머지도 맞춰줘.” |
+| 스타일 맞춘 세트 | “DESIGN.md 톤에 맞춰 설정 아이콘을 만들고, 나머지 아이콘도 같은 스타일로 맞춰줘.” |
 | 생성 중 다른 작업 | “이미지들은 병렬로 만들고, 그동안 UI 마무리해줘.” |
 
 요청이 명확하면 질문 없이 시작합니다. 인터뷰는 필요한 경우에만 진행하고, 이미 만족스러운 결과를 자동으로 다시 만들지 않습니다. 이미지를 수정할 때는 원본을 보존합니다.
 
 ## 시작하기
 
-macOS 또는 Linux, Python 3.9+, Claude Code, 로그인된 Codex CLI 0.164.0+가 필요합니다.
+macOS 또는 Linux, Python 3.9+, Claude Code, 로그인된 Codex CLI 0.164.0+가 필요합니다. 저장소를 클론했다면 `python3 skill/scripts/codex_status.py`로 준비 상태를 확인할 수 있습니다(모델 호출 없음).
 
 ```bash
 # Codex가 없다면 먼저 설치하고 로그인하세요.
@@ -62,34 +71,34 @@ npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen --skill c
 
 이미지 생성 호출 자체는 Codex 응답을 기다립니다. 그 대기는 **분리된 Python 프로세스**가 맡습니다. Claude는 작업 경로를 즉시 받고 다른 요청 작업을 진행할 수 있습니다.
 
-- 기본 동시 생성 2개, 최대 4개. 생성 횟수가 늘어나는 기능은 아닙니다.
+- 기본 동시 생성 2개, 최대 4개. 기다리는 시간만 줄어들 뿐, 이미지당 사용량은 줄지 않습니다.
 - 개별 PNG와 비교용 HTML, 상태 파일, 로그를 로컬에 저장합니다.
 - 상태 조회와 갤러리 생성에는 Codex를 호출하지 않습니다.
 - 실패해도 완료한 결과는 남습니다. 오류 확인 후 재개하면 완료된 이미지는 건너뜁니다.
 - 로컬 프로세스이므로 컴퓨터가 켜져 있어야 합니다. 호스트가 분리된 프로세스를 종료하면 호스트의 백그라운드 작업 기능이 필요할 수 있습니다.
 
-Claude가 명령을 처리하지만, 직접 실행할 수도 있습니다.
+Claude가 명령을 처리하지만, 클론한 저장소에서 직접 실행할 수도 있습니다.
 
 ```bash
 python3 skill/scripts/image_project.py \
-  --prompt-file brief.txt --out-dir output/hero-v1 --background
+  --prompt-file output/imagegen/hero/hero.md --out-dir output/imagegen/hero/run-1 --background
 
-python3 skill/scripts/image_project.py --out-dir output/hero-v1 --status
+python3 skill/scripts/image_project.py --out-dir output/imagegen/hero/run-1 --status
 ```
 
-여러 시안은 [JSON 계획 예시](tests/prompts/demo/plan.json)를 `--plan`으로 전달합니다. `--dry-run`은 생성 없이 입력을 검사합니다.
+여러 시안은 [JSON 계획 예시](tests/prompts/demo/plan.json)를 `--plan`으로 전달합니다. `--dry-run`은 생성 없이 입력을 검사합니다. `--model`로 중계 모델을 바꿀 수 있지만 기본값 `gpt-6-luna`를 권장합니다.
 
 ## 컨텍스트와 구독 사용량을 아낍니다
 
 Claude가 인터뷰·기획·검수를 맡고, Codex에는 완성된 짧은 이미지 지시문만 전달합니다. 기본 중계 모델은 `gpt-6-luna`, 추론 설정은 `none`입니다. 중계 호출에서 일반 코딩 지시문과 스킬 목록을 제외합니다.
 
-로컬 점검에서 **자동 삽입 컨텍스트가 11,133자 → 821자**로 줄었습니다. 이는 전체 토큰이나 비용이 93% 줄었다는 뜻은 아닙니다. 이미지·도구 토큰과 런타임 지시문은 여전히 사용됩니다. [측정 범위](docs/validation.md)를 확인하세요.
+codex-cli 0.164.0에서 `$imagegen` 언급과 Codex의 권한·협업 안내를 빼자 중계 요청당 입력이 **약 10,800 → 5,900 토큰**으로 줄었습니다. 그래도 실제 실행에서는 중계 토큰이 8,500~37,000으로 측정됐고(2026년 11월 0.166.0에서 13,124), 이미지 생성은 Codex 사용량에서 따로 차감됩니다. [측정 범위](docs/validation.md)를 확인하세요.
 
-## GPT Image 2.5 지원 범위
+## 이미지 모델
 
-공식 문서는 [Flare](https://developers.openai.com/api/docs/models/gpt-image-2.5-flare)를 빠른 일상 생성용, [Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst)를 높은 품질과 정밀 편집용으로 소개합니다. 해당 특성과 편집·투명도 지침을 스킬에 반영했습니다.
+OpenAI API에는 GPT Image 2.5와 2026년 11월에 나온 [Images 2.6](https://openai.com/index/introducing-images-2-6/)이 있고, 각각 Flare(속도)와 Sunburst(디테일·정밀 편집)로 나뉩니다. OpenAI는 2.6을 Codex에서도 쓸 수 있다고 밝혔습니다. 스킬의 프롬프트·검수 지침은 [공식 이미지 가이드](https://developers.openai.com/api/docs/guides/image-generation)를 따릅니다.
 
-**현재 이 구독 경로에서 Flare/Sunburst를 강제 선택할 수는 없습니다.** `--model`은 이미지 모델이 아닌 텍스트 중계 모델 설정입니다. [실제 Codex 응답](docs/model-capability-probe.json)에서도 이미지 모델 선택 파라미터가 없다고 확인했습니다. 자연어로 모델 이름을 지정했을 때의 효과는 알 수 없다고 답했습니다. 지원하지 않는 선택 옵션이나 별도 과금 API 우회 경로는 제공하지 않습니다. [조사 기록](docs/model-research.md).
+**이 구독 경로에서는 이미지 모델을 고를 수도, 확인할 수도 없습니다.** Codex는 고정된 이름을 보내고 서버가 모델을 정하며, 응답과 파일 메타데이터에도 모델이 나오지 않습니다. `--model`은 이미지 모델이 아닌 텍스트 중계 모델 설정입니다. 2.6의 API 전용 기능(complexity, 마크업 편집, SVG, GIF)은 여기서 쓸 수 없습니다. 별도 과금 API로 우회하거나, 없는 선택 옵션을 만들거나, 결과에 모델 버전을 붙이지 않습니다. [조사 기록](docs/model-research.md).
 
 ## 확인할 수 있는 품질
 

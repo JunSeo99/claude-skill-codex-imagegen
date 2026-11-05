@@ -396,7 +396,7 @@ class ProjectTests(unittest.TestCase):
             state = {"completed": {}}
             barrier = threading.Barrier(2)
             started = []
-            def generate(job, out):
+            def generate(job, out, relay_args=()):
                 started.append(job["id"])
                 barrier.wait(timeout=3)
                 if job["id"] == "a":
@@ -432,6 +432,34 @@ class ProjectTests(unittest.TestCase):
                 PROJECT.main()
             run.assert_not_called()
             self.assertEqual(json.loads(stdout.getvalue())["status"], "queued")
+
+    def test_relay_options_reach_background_worker_and_launcher(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            path = self.make_plan(root)
+            out = root / "out"
+            relay = ["--model", "gpt-6-astra", "--reasoning-effort", "low", "--timeout", "600",
+                     "--allow-default-model-fallback"]
+            with mock.patch.object(sys, "argv", ["project", "--plan", str(path), "--out-dir", str(out),
+                                                 "--background", *relay]), \
+                mock.patch.object(PROJECT.subprocess, "Popen") as popen, mock.patch("sys.stdout", new_callable=io.StringIO):
+                popen.return_value.pid = 123
+                PROJECT.main()
+            child = popen.call_args.args[0]
+            self.assertEqual(child[-len(relay):], relay)
+            source = root / "source.png"
+            source.write_bytes(TRANSPARENT_FIXTURE.read_bytes())
+            job = {"id": "a", "prompt_file": str(root / "a.txt"), "images": []}
+            done = subprocess.CompletedProcess([], 0, stdout=str(source) + "\n")
+            with mock.patch.object(PROJECT.subprocess, "run", return_value=done) as run:
+                PROJECT.generate_one(job, root, relay)
+            launcher = run.call_args.args[0]
+            self.assertIn("run_codex_imagegen.py", launcher[1])
+            for flag in relay:
+                self.assertIn(flag, launcher)
+        with mock.patch.object(sys, "argv", ["project", "--plan", "p.json", "--out-dir", "o", "--model", 'x"y']), \
+            mock.patch("sys.stderr", new_callable=io.StringIO), self.assertRaises(SystemExit):
+            PROJECT.main()
 
     def test_detached_workers_complete_in_parallel_with_fake_codex(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

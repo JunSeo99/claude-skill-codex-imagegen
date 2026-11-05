@@ -12,11 +12,11 @@ to the plan file; all inputs are validated before the first generation call.
 
 ```json
 {
-  "title": "Coffee campaign directions",
+  "title": "Notes app onboarding directions",
   "jobs": [
-    {"id": "a-studio", "label": "Warm studio photograph", "prompt_file": "a.txt"},
-    {"id": "b-graphic", "label": "Bold graphic composition", "prompt_file": "b.txt"},
-    {"id": "c-paper", "label": "Handmade paper illustration", "prompt_file": "c.txt"}
+    {"id": "a-ink", "label": "Ink navy, matte 3D", "prompt_file": "a-ink.txt"},
+    {"id": "b-riso", "label": "Two-color risograph", "prompt_file": "b-riso.txt"},
+    {"id": "c-papercraft", "label": "Cut paper on apricot", "prompt_file": "c-papercraft.txt"}
   ]
 }
 ```

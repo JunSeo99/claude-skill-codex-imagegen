@@ -10,11 +10,19 @@
 npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen --skill codex-imagegen
 ```
 
-| 写真の方向性 | ペーパーイラスト | 選んだ画像を編集 |
-|:---:|:---:|:---:|
-| ![テラコッタのカップ](assets/demo/a-studio.png) | ![紙の質感のカップ](assets/demo/b-paper.png) | ![緑色に編集したカップ](assets/demo/a-studio-v2.png) |
+> 「メモアプリのオンボーディング画像、方向性を3つ見せて」
 
-付属ランチャーで実際に生成した画像です。[プロンプトと検証記録](docs/validation.md)を公開しています。画像モデルはCodexが管理するため、特定のモデルの出力とは表示していません。
+| A · インクネイビーのマット3D | B · 2色リソグラフ | C · アプリコット地のペーパークラフト |
+|:---:|:---:|:---:|
+| ![濃紺の背景、トレイから黄色いタブのカードが1枚上がる](assets/demo/notes-a-ink.png) | ![コバルトと朱で刷った、開いたノートから立ち上がるカード](assets/demo/notes-b-riso.png) | ![アプリコット地に緑の仕切りが入った紙のカードボックス](assets/demo/notes-c-papercraft.png) |
+
+> 「Aにする。アプリ内アイコンと空の状態も揃えて」
+
+| 新規メモ | フォルダ | 検索 | リマインダー | 空の状態 |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="assets/demo/set-new-note.png" width="96" alt="New-note icon"> | <img src="assets/demo/set-folder.png" width="96" alt="Folder icon"> | <img src="assets/demo/set-search.png" width="96" alt="Search icon"> | <img src="assets/demo/set-reminder.png" width="96" alt="Reminder icon"> | <img src="assets/demo/set-empty.png" width="168" alt="Empty-state illustration"> |
+
+一行の依頼ごとにClaudeがアートディレクション（明度差、3色の役割、ひとつの主役）を含む指示を書き、Aのスタイルを全アセットに固定し、見せる前に透過と一貫性を確認しました。付属ランチャーで実際に生成した画像です。[指示・プラン・検証記録](docs/validation.md)を公開しています。画像モデルはCodexのサーバーが選ぶため、特定のバージョンとは表示していません。
 
 ## 自然な言葉で依頼
 
@@ -25,6 +33,7 @@ npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen --skill c
 | 候補を比較 | 「違う方向性で3案見せて」 |
 | 部分編集 | 「2番を使って、背景だけ変えて」 |
 | 透過画像 | 「商品を透明なPNGにして」 |
+| スタイルを揃える | 「アプリのトーンで設定アイコンを作って、残りのアイコンも同じスタイルで」 |
 | 並列作業 | 「画像を生成している間にUIを仕上げて」 |
 
 明確な依頼にはすぐ着手します。必要なときだけ質問し、候補は別々の画像として保存します。編集は元画像を残し、変更したい部分と保つ部分を区別します。
@@ -45,8 +54,8 @@ codex login
 分離したPythonワーカーがCodexの応答を待ち、Claudeにはジョブ情報をすぐ返します。同時実行は標準2件、最大4件。PNG、比較用HTML、状態、ログをローカル保存します。状態確認はCodexを呼びません。失敗後に確認して再開すると、完了済み画像は再生成しません。PCは起動している必要があり、ホストによっては専用のバックグラウンド実行機能が必要です。
 
 ```bash
-python3 skill/scripts/image_project.py --prompt-file brief.txt --out-dir output/hero-v1 --background
-python3 skill/scripts/image_project.py --out-dir output/hero-v1 --status
+python3 skill/scripts/image_project.py --prompt-file output/imagegen/hero/hero.md --out-dir output/imagegen/hero/run-1 --background
+python3 skill/scripts/image_project.py --out-dir output/imagegen/hero/run-1 --status
 ```
 
 複数案は[JSONプラン](tests/prompts/demo/plan.json)を`--plan`で指定します。
@@ -55,7 +64,7 @@ python3 skill/scripts/image_project.py --out-dir output/hero-v1 --status
 
 Claudeが企画と確認を担当し、Codexには完成した短い指示だけを渡します。中継モデルは標準で`gpt-6-luna`、推論は`none`。一般的なコーディング指示とスキル一覧を省きます。[検証](docs/validation.md)で確認したコンテキスト削減は、総トークンや料金の削減率を保証するものではありません。
 
-公式には[Flare](https://developers.openai.com/api/docs/models/gpt-image-2.5-flare)は速度重視、[Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst)は品質と精密な編集を重視します。ただし、**このサブスクリプション経路では両モデルを固定できません**。`--model`はテキスト中継モデルの設定です。有料APIへ切り替える経路はありません。
+OpenAIのAPIにはGPT Image 2.5と、2026年11月の[Images 2.6](https://openai.com/index/introducing-images-2-6/)があり、それぞれFlare（速度）とSunburst（精細さ・精密な編集）に分かれます。OpenAIは2.6がCodexでも使えるとしています。ただし、**このサブスクリプション経路では画像モデルを選ぶことも確認することもできません**。サーバーがモデルを決め、応答やファイルのメタデータにも表示されません。`--model`はテキスト中継モデルの設定です。2.6のAPI専用機能（complexity、マークアップ編集、SVG、GIF）は使えません。有料APIへ切り替える経路はありません。
 
 透過PNGは実際のアルファ値を検証します。文字、形状、意図しない変更はClaudeが画像を見て確認します。生成編集にピクセル単位の保持保証はありません。
 
