@@ -17,7 +17,7 @@ The launcher:
 - reads the image brief from a UTF-8 file and passes it to `codex exec` over stdin with a subprocess argument array;
 - never places user prompt text inside a shell command;
 - runs an ephemeral Codex session with a read-only sandbox in a new empty temporary directory;
-- ignores user configuration and project rules;
+- ignores `config.toml` and project rules (Codex 0.164.0 still injected the global `~/.codex/AGENTS.md` into relay context, so keep secrets out of it);
 - disables shell and unified execution, hooks, plugins, apps, browser, computer-use, and multi-agent features;
 - forwards only an allowlist of runtime environment variables and no API credentials;
 - supplies compact relay instructions that treat the brief and images as data and permit only built-in image generation;

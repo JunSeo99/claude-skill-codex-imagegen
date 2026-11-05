@@ -21,20 +21,25 @@ npx skills add https://github.com/JunSeo99/claude-skill-codex-imagegen --skill c
 claude plugin marketplace add JunSeo99/claude-skill-codex-imagegen
 claude plugin install codex-imagegen@codex-imagegen
 
-# Check Codex readiness (no model call):
+# From a clone, check Codex readiness (no model call):
 python3 skill/scripts/codex_status.py
 ```
 
-> “Give me two visual directions for a coffee brand. Keep building the page while they generate.”
+> “Show me three directions for my notes app's onboarding illustration.”
 
-| 01 · Studio photograph | 02 · Paper illustration | 01, refined · Green glaze |
+| A · Ink navy, matte 3D | B · Two-color risograph | C · Cut paper on apricot |
 |:---:|:---:|:---:|
-| ![Terracotta cup photographed on limestone](assets/demo/a-studio.png) | ![Terracotta cup as a tactile paper illustration](assets/demo/b-paper.png) | ![Chosen photograph edited to a green cup](assets/demo/a-studio-v2.png) |
-| Warm light. Natural material. | Graphic shape. Paper texture. | “Keep the shot. Change only the cup color.” |
+| ![Index cards in a tray on deep navy, one card with a yellow tab pulled up](assets/demo/notes-a-ink.png) | ![Open notebook with cards rising out, printed in cobalt and vermilion](assets/demo/notes-b-riso.png) | ![Paper index-card box with green dividers on an apricot background](assets/demo/notes-c-papercraft.png) |
 
-Actual outputs through the bundled Codex launcher, not hand-built mockups. [Prompts and verification](docs/validation.md). The image backend is managed by Codex; these examples are not labeled as a particular GPT Image model.
+> “A it is. Make the in-app icons and the empty state match.”
 
-[Get started](#get-started) · [What you can ask](#what-you-can-ask) · [Background generation](#background-generation) · [How it stays lean](#how-it-stays-lean) · [Model support](#gpt-image-25-and-model-support)
+| New note | Folder | Search | Reminder | Empty state |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="assets/demo/set-new-note.png" width="96" alt="New-note icon"> | <img src="assets/demo/set-folder.png" width="96" alt="Folder icon"> | <img src="assets/demo/set-search.png" width="96" alt="Search icon"> | <img src="assets/demo/set-reminder.png" width="96" alt="Reminder icon"> | <img src="assets/demo/set-empty.png" width="168" alt="Empty-state illustration"> |
+
+For each one-line request, Claude wrote an art-directed brief (value contrast, three-color palette roles, one focal subject), locked direction A's style for every asset, and checked transparency and consistency before showing anything. Actual outputs through the bundled Codex launcher, not hand-built mockups. [Briefs, plans, and verification](docs/validation.md). Codex picks the image model on its server, so these are not labeled with a GPT Image version.
+
+[Get started](#get-started) · [What you can ask](#what-you-can-ask) · [Background generation](#background-generation) · [How it stays lean](#how-it-stays-lean) · [Image models](#image-models)
 
 ## What you can ask
 
@@ -44,8 +49,8 @@ Actual outputs through the bundled Codex launcher, not hand-built mockups. [Prom
 | “I'm not sure what I want. Interview me.” | Asks a few useful questions before spending generation quota. |
 | “Show me three different directions.” | Makes separate images and a local comparison gallery. |
 | “Use option 2. Change only the background.” | Edits the chosen image, preserves the original, checks for drift. |
-| “Make a transparent product cutout.” | Requests genuine alpha and checks decoded PNG pixels. |
-| “Make the rest of the assets match this one.” | Reuses the accepted reference and a concise style lock. |
+| “Cut this product photo out onto a transparent background.” | Requests genuine alpha, checks decoded PNG pixels, and compares labels and detail with the source. |
+| “Make a settings icon in our app's style, then the rest of the set.” | Settles the style on one sample, then repeats a style lock for every asset. |
 | “Generate these while you finish the UI.” | Starts background workers; Claude continues independent work. |
 
 No mandatory interview for a clear request. No extra variations when you asked for one. No automatic polishing loop after an image already works.
@@ -90,16 +95,16 @@ Claude: understand → write brief → start job ───→ continue coding �
                                      └─ image B ─┴─→ PNGs + gallery + manifest
 ```
 
-Claude normally handles the commands. For scripting:
+Claude normally handles the commands. For scripting from a clone:
 
 ```bash
 python3 skill/scripts/image_project.py \
-  --prompt-file brief.txt --out-dir output/hero-v1 --background
+  --prompt-file output/imagegen/hero/hero.md --out-dir output/imagegen/hero/run-1 --background
 
-python3 skill/scripts/image_project.py --out-dir output/hero-v1 --status
+python3 skill/scripts/image_project.py --out-dir output/imagegen/hero/run-1 --status
 ```
 
-For multiple directions, supply a [small JSON plan](tests/prompts/demo/plan.json) with `--plan` and optionally `--workers 2`. Use `--dry-run` to validate without generating.
+For multiple directions, supply a [small JSON plan](tests/prompts/demo/plan.json) with `--plan` and optionally `--workers 2`. Use `--dry-run` to validate without generating. `--model` changes the text relay for every job; the default `gpt-6-luna` is recommended.
 
 Outputs include separate PNGs, `index.html`, `manifest.json`, and `worker.log`. Successful candidates survive failures. After inspecting the error, `--resume` verifies and skips completed images. It never restarts the whole set automatically. Keep the machine awake; background jobs are local processes, not cloud queues. Hosts that terminate detached processes may require their own background-task facility.
 
@@ -113,13 +118,13 @@ Outputs include separate PNGs, `index.html`, `manifest.json`, and `worker.log`. 
 - Interviews, art direction, quality review, galleries, and status checks do not start another Codex conversation.
 - A rejected relay does not silently upgrade to a heavier model. Completed images are not regenerated on resume.
 
-A local prompt-input check reduced **automatically injected context from 11,133 to 821 characters**. This is a context measurement, not a claim of 93% lower total tokens or cost. Image/tool tokens and runtime instructions still apply. [Measurement details](docs/validation.md).
+On codex-cli 0.164.0, dropping the `$imagegen` mention and Codex's permission and collaboration notes cut relay input from about **10,800 to 5,900 tokens per request**. Sampled runs still reported 8,500–37,000 relay tokens (13,124 on 0.166.0 in November 2026), and image generation draws on your Codex allowance separately. [Measurement details](docs/validation.md).
 
-## GPT Image 2.5 and model support
+## Image models
 
-[Flare](https://developers.openai.com/api/docs/models/gpt-image-2.5-flare) is positioned for fast everyday generation. [Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst) targets demanding quality and precise edits. The skill's prompting and review guidance incorporates the new [official image guidance](https://developers.openai.com/api/docs/guides/image-generation).
+OpenAI's API offers GPT Image 2.5 and, since November 2026, [Images 2.6](https://openai.com/index/introducing-images-2-6/), each as Flare (speed) and Sunburst (detail and precise edits). OpenAI says 2.6 is available in Codex too. The skill's prompting and review guidance follows the [official image guidance](https://developers.openai.com/api/docs/guides/image-generation).
 
-**This subscription path cannot currently pin Flare or Sunburst.** Codex manages the built-in image backend. `--model` chooses the lightweight text relay, not the image model. A [direct CLI probe](docs/model-capability-probe.json) also reported no image-model parameter; whether natural-language model names influence routing remains unknown. We do not substitute a separately billed API, invent a model selector, or label an unverified output as GPT Image 2.5. [Research and capability boundaries](docs/model-research.md).
+**This subscription path cannot choose or confirm the image model.** Codex sends a fixed label and its server decides; responses and file metadata do not say which model ran. `--model` chooses the lightweight text relay, not the image model. API-only 2.6 features (complexity, markup edits, SVG, GIF) are not available here. We do not substitute a separately billed API, invent a model selector, or label an output with a model version. [Research and capability boundaries](docs/model-research.md).
 
 ## Quality you can inspect
 

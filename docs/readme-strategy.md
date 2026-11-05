@@ -1,13 +1,6 @@
 # Repository presentation strategy
 
-References inspected through the GitHub API on 2026-09-09. Star counts are a dated popularity signal, not proof that a README caused adoption.
-
-| Repository | Stars observed | Pattern adapted here |
-|---|---:|---|
-| [obra/superpowers](https://github.com/obra/superpowers) | 283,578 | Explain a complete user workflow before implementation details. |
-| [anthropics/skills](https://github.com/anthropics/skills) | 175,309 | Discoverable skill metadata, self-contained folders, explicit installation. |
-| [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill) | 61,641 | Show the result early, offer a copyable install command, use concrete requests and language links. |
-| [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills) | 48,062 | Clear capability table and the exact directory to install. |
+Patterns were taken from widely used skill repositories, inspected on 2026-09-09: explain a complete user workflow before implementation details; keep skill folders self-contained with explicit installation; show the result early with a copyable install command and concrete requests; give a clear capability table and the exact install directory.
 
 ## Applied
 

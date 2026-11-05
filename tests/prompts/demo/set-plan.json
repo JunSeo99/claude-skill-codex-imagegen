@@ -1,0 +1,8 @@
+{"title": "Notes app set in direction A",
+ "jobs": [
+  {"id": "new-note", "label": "New note", "prompt_file": "set-new-note.txt", "images": ["../../../assets/demo/notes-a-ink.png"]},
+  {"id": "folder", "label": "Folder", "prompt_file": "set-folder.txt", "images": ["../../../assets/demo/notes-a-ink.png"]},
+  {"id": "search", "label": "Search", "prompt_file": "set-search.txt", "images": ["../../../assets/demo/notes-a-ink.png"]},
+  {"id": "reminder", "label": "Reminder", "prompt_file": "set-reminder.txt", "images": ["../../../assets/demo/notes-a-ink.png"]},
+  {"id": "empty", "label": "Empty state", "prompt_file": "set-empty.txt", "images": ["../../../assets/demo/notes-a-ink.png"]}
+ ]}

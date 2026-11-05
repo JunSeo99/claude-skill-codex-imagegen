@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-11-05
+
+The first stable release: the brief Claude writes now carries real art direction, the docs match what Codex does after Images 2.6, and the demo shows a full direction-to-set workflow.
+
+### Added
+
+- Art direction section in the prompting guide: value contrast between subject and background, three-color palette roles with one accent, one focal subject, an idea instead of a literal scene, material and light, and clichés to cut. SKILL.md asks Claude to settle these before writing a styled brief.
+- Icons and in-app assets section and a consistent-sets section with a reusable style lock, plus official advice on text, photorealism, and reference roles.
+- `image_project.py` forwards `--model`, `--reasoning-effort`, `--timeout`, and `--allow-default-model-fallback` to every job, including detached workers. The default and recommended relay stays `gpt-6-luna`.
+- Exact-size export example (`sips` resize plus crop) in the CLI reference.
+
+### Changed
+
+- New README demo: three onboarding-illustration directions for a notes app, then four transparent in-app icons and an empty state in the chosen style. Briefs and plans are in `tests/prompts/demo/`. The earlier coffee-cup demo images, briefs, and examples were removed.
+- Image model wording updated for Images 2.6 (2026-11-04): Codex picks the image model server-side, and outputs are never labeled with a GPT Image version or variant. API-only 2.6 features (complexity, markup edits, SVG, GIF) are documented as unavailable on this path.
+- Transparency guidance: describe only the isolated subject, because a described backdrop can override the transparency flag. Cutouts of existing photos are re-rendered, so compare labels and framing with the source; a 0.166.0 test kept dense label text correct.
+- Frontmatter description covers app icons and UI assets and excludes vector, animation, and image-API code requests.
+- The transparency test brief uses the skill's own brief format and no longer starts with `$imagegen`.
+- READMEs: updated relay-token figures, scripting paths that follow `output/imagegen/<purpose>/`, and synced translations.
+- Docs: 2026-11-05 validation run, model research re-check, and SECURITY note that Codex still injects the global `~/.codex/AGENTS.md` into the relay.
+
 ## [0.4.0] - 2026-11-02
 
 ### Changed

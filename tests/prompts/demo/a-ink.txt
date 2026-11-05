@@ -1,0 +1,5 @@
+Asset: onboarding illustration for a notes app, first screen; square 1:1; one image; the headline is set by the app, not in the image
+Request: one tidy upright row of paper-white index cards in a low tray, with a single card pulled halfway up; that card has a bright signal-yellow tab, the moment of "found it"
+Look: soft matte 3D render, studio quality; fine paper tooth on the cards; key light from top left, crisp soft contact shadows; palette of deep ink navy (#1F2A44) background, paper white, and signal yellow (#FFC93C) used only on the pulled card's tab
+Composition: the tray and cards fill about 60% of the frame, centered slightly low, seen from a gentle three-quarter angle; full-bleed navy background with a subtle vignette; nothing else in the scene
+Constraints: no readable writing, letters, numbers, logos, UI, people, motion lines, sparkles, or floating extra papers; no watermark

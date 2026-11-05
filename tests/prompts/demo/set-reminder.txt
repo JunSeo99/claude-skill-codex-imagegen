@@ -1,0 +1,6 @@
+Asset: in-app icon for a notes app; square 1:1; one image
+Image 1: style reference only; match its material, palette, and light, not its subject or layout
+Request: a rounded paper-white bell with a navy clapper; a small yellow notification dot at its top right is the yellow detail
+Style lock: soft matte 3D render, studio quality; paper-white main forms with fine paper tooth, deep ink navy (#1F2A44) secondary parts, signal yellow (#FFC93C) on exactly one small detail; key light from top left, soft ambient occlusion, rounded edges; a simple bold silhouette that reads at 28 px
+Composition: one object centered, gentle three-quarter view, generous even padding (about 12%); nothing touches the edges
+Constraints: transparent background with real alpha; no floor, cast shadow, backdrop, text, letters, numbers, or watermark

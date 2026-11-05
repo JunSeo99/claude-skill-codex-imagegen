@@ -1,6 +1,7 @@
-# GPT Image 2.5 research and implementation decisions
+# Image model research and implementation decisions
 
-Checked 2026-09-09 against official OpenAI documentation and the installed Codex CLI.
+First checked 2026-09-09 (GPT Image 2.5); re-checked 2026-11-05 after Images 2.6.
+See the re-check section below for the current state.
 
 | Model | Official positioning | Implication for our workflow |
 |---|---|---|
@@ -61,3 +62,19 @@ brief requests a transparent background.
 - Quota: bound concurrency and repairs; persist completed results instead of regenerating.
 
 These are product/design judgments for this skill, not comparative model benchmarks. Faster does not automatically mean cheaper; subscription limits and image-generation charges to the allowance are controlled by Codex.
+
+### Re-check after Images 2.6 — 2026-11-05
+
+OpenAI released Images 2.6 on 2026-11-04 (API models `gpt-image-2.6-flare` and
+`gpt-image-2.6-sunburst`, adding `complexity`, markup edits, SVG, and GIF output to
+the Image API) and said it is available in ChatGPT and Codex. On codex-cli 0.166.0
+the built-in tool still exposes only the four parameters above. The open-source
+client posts a fixed `gpt-image-2` label with automatic quality and size, and
+public tests show the Codex images endpoint accepting even a nonexistent model name,
+so the server chooses the model. Responses and C2PA metadata do not identify it.
+A GIF request returned a still PNG; an alpha client with GIF support received
+HTTP 400 from the server. Conclusion unchanged: report the backend as Codex-managed,
+never label outputs with a model version, and add no inert model selector.
+Sources: [announcement](https://openai.com/index/introducing-images-2-6/),
+[2.6 Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.6-sunburst),
+[prompting guide](https://developers.openai.com/api/docs/guides/image-prompting).
