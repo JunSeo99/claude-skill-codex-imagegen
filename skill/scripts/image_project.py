@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
-import fcntl
+try:
+    import fcntl
+except ImportError:  # Windows has no fcntl; fall back to msvcrt.locking.
+    fcntl = None
+    import msvcrt
 import hashlib
 import html
 import json
@@ -19,6 +23,26 @@ import time
 from run_codex_imagegen import read_prompt, resolve_images
 
 SCRIPTS = Path(__file__).resolve().parent
+
+
+def lock_file(handle) -> None:
+    """Take a non-blocking exclusive lock; raise BlockingIOError if another process holds it."""
+    if fcntl:
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return
+    handle.seek(0)
+    try:
+        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+    except OSError as error:
+        raise BlockingIOError(str(error)) from error
+
+
+def unlock_file(handle) -> None:
+    if fcntl:
+        fcntl.flock(handle, fcntl.LOCK_UN)
+        return
+    handle.seek(0)
+    msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 def read_plan(path: Path, single_prompt: str | None = None, images: list[str] | None = None) -> tuple[dict, str]:
@@ -204,7 +228,7 @@ def main() -> None:
         parser.error("cannot resume a missing directory")
     with (target / ".worker.lock").open("a") as lock:
         try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            lock_file(lock)
         except BlockingIOError:
             parser.error("a worker is already running for this directory")
         state = {"plan_sha256": digest, "backend": "codex", "completed": {}, "status": "queued", "total": len(plan["jobs"])}
@@ -227,7 +251,7 @@ def main() -> None:
             command = [sys.executable, str(Path(__file__).resolve()), "--plan", str(snapshot),
                        "--out-dir", str(target), "--resume", "--workers", str(args.workers), *relay_arguments(args)]
             # Child must acquire the lock; release it before spawning.
-            fcntl.flock(lock, fcntl.LOCK_UN)
+            unlock_file(lock)
             with (target / "worker.log").open("a") as log:
                 child = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
                                          start_new_session=True, close_fds=True)

@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Windows: `image_project.py` no longer fails to import for lack of `fcntl`; it falls back to `msvcrt.locking` for the worker lock.
+- Windows: the Codex child process keeps the system variables it needs to start (`SYSTEMROOT`, `USERPROFILE`, `APPDATA`, `PATHEXT`, `COMSPEC` and a few more).
+- The Codex subprocess is read and written as UTF-8 (`errors="replace"`) instead of the locale code page, so non-ASCII briefs reach Codex intact on Windows.
+
 ## [1.0.0] - 2026-11-05
 
 The first stable release: the brief Claude writes now carries real art direction, the docs match what Codex does after Images 2.6, and the demo shows a full direction-to-set workflow.
