@@ -45,6 +45,19 @@ SAFE_ENV_NAMES = frozenset(
         "TMP",
         "TMPDIR",
         "USER",
+        # Windows: the Codex CLI (node behind a .CMD shim) needs these to start and to find
+        # its profile and ~/.codex.
+        "APPDATA",
+        "COMSPEC",
+        "HOMEDRIVE",
+        "HOMEPATH",
+        "LOCALAPPDATA",
+        "PATHEXT",
+        "SYSTEMDRIVE",
+        "SYSTEMROOT",
+        "USERNAME",
+        "USERPROFILE",
+        "WINDIR",
     }
 )
 OUTPUT_SCHEMA = {
@@ -351,6 +364,8 @@ def main() -> None:
                     command[:2] + model_args + command[2:],
                     input=prompt,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.PIPE,
                     timeout=args.timeout,

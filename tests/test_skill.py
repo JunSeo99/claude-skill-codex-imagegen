@@ -123,6 +123,36 @@ class LauncherBoundaryTests(unittest.TestCase):
             environment = RUNNER.sanitized_environment()
         self.assertEqual(environment, {"HOME": "/tmp/home", "PATH": "/usr/bin"})
 
+    def test_environment_keeps_windows_variables_a_child_process_needs(self) -> None:
+        needed = {
+            "SYSTEMROOT": r"C:\Windows",
+            "WINDIR": r"C:\Windows",
+            "USERPROFILE": r"C:\Users\someone",
+            "APPDATA": r"C:\Users\someone\AppData\Roaming",
+            "LOCALAPPDATA": r"C:\Users\someone\AppData\Local",
+            "PATHEXT": ".COM;.EXE;.BAT;.CMD",
+            "COMSPEC": r"C:\Windows\System32\cmd.exe",
+        }
+        source = {**needed, "PROJECT_ACCESS_TOKEN": "must-not-pass", "UNRELATED_VALUE": "must-not-pass"}
+        with mock.patch.dict(os.environ, source, clear=True):
+            environment = RUNNER.sanitized_environment()
+        self.assertEqual(environment, needed)
+
+    def test_codex_subprocess_decodes_output_as_utf8(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            prompt = Path(temp_dir) / "brief.txt"
+            prompt.write_text("$imagegen\nUne tasse \u00e9l\u00e9gante.", encoding="utf-8")
+            failure = subprocess.CompletedProcess([], 1, stderr="boom")
+            with mock.patch.object(sys, "argv", ["runner", "--prompt-file", str(prompt)]), \
+                mock.patch.object(RUNNER.shutil, "which", return_value="codex"), \
+                mock.patch.object(RUNNER.subprocess, "run", return_value=failure) as run, \
+                mock.patch("sys.stderr", new_callable=io.StringIO):
+                with self.assertRaises(SystemExit):
+                    RUNNER.main()
+            self.assertEqual(run.call_args.kwargs["encoding"], "utf-8")
+            self.assertEqual(run.call_args.kwargs["errors"], "replace")
+            self.assertEqual(run.call_args.kwargs["input"], "Une tasse \u00e9l\u00e9gante.")
+
     def test_structured_paths_must_stay_inside_generated_root(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "generated_images"
@@ -275,7 +305,9 @@ class LauncherBoundaryTests(unittest.TestCase):
                 "none",
                 "--allow-default-model-fallback",
             ]
-            with mock.patch.dict(os.environ, {"CODEX_HOME": str(codex_home), "PATH": "/usr/bin"}, clear=True), \
+            # Path.home() is evaluated eagerly and needs HOME (POSIX) or USERPROFILE (Windows).
+            environment = {"CODEX_HOME": str(codex_home), "PATH": "/usr/bin", "HOME": temp_dir, "USERPROFILE": temp_dir}
+            with mock.patch.dict(os.environ, environment, clear=True), \
                 mock.patch.object(RUNNER.shutil, "which", return_value="/usr/bin/codex"), \
                 mock.patch.object(RUNNER.subprocess, "run", side_effect=fake_run), \
                 mock.patch.object(sys, "argv", argv), \
@@ -325,7 +357,10 @@ class LauncherBoundaryTests(unittest.TestCase):
             payload = json.dumps({"generated_png_paths": [str(fake)]})
             self.assertEqual(RUNNER.extract_generated_paths(payload, root), [])
             link = root / "link.png"
-            link.symlink_to(TRANSPARENT_FIXTURE)
+            try:
+                link.symlink_to(TRANSPARENT_FIXTURE)
+            except OSError as error:  # Windows without Developer Mode or elevation
+                self.skipTest(f"cannot create symlinks here: {error}")
             self.assertEqual(RUNNER.extract_generated_paths(json.dumps({"generated_png_paths": [str(link)]}), root), [])
 
 
@@ -380,6 +415,37 @@ class ProjectTests(unittest.TestCase):
             self.assertNotIn("<script>", page)
             self.assertIn("&lt;img", page)
             self.assertEqual(len(json.loads((out / "manifest.json").read_text())["completed"]), 2)
+
+    def test_worker_lock_is_exclusive_until_released(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / ".worker.lock"
+            with path.open("a") as first, path.open("a") as second:
+                PROJECT.lock_file(first)
+                with self.assertRaises(BlockingIOError):
+                    PROJECT.lock_file(second)
+                PROJECT.unlock_file(first)
+                PROJECT.lock_file(second)
+                PROJECT.unlock_file(second)
+
+    def test_lock_falls_back_to_msvcrt_when_fcntl_is_missing(self) -> None:
+        fake_msvcrt = mock.MagicMock(LK_NBLCK=2, LK_UNLCK=0)
+        handle = mock.MagicMock()
+        handle.fileno.return_value = 7
+        with mock.patch.object(PROJECT, "fcntl", None), mock.patch.object(PROJECT, "msvcrt", fake_msvcrt, create=True):
+            PROJECT.lock_file(handle)
+            fake_msvcrt.locking.assert_called_with(7, 2, 1)
+            PROJECT.unlock_file(handle)
+            fake_msvcrt.locking.assert_called_with(7, 0, 1)
+            fake_msvcrt.locking.side_effect = PermissionError("locked")
+            with self.assertRaises(BlockingIOError):
+                PROJECT.lock_file(handle)
+
+    def test_module_imports_without_fcntl(self) -> None:
+        fake_msvcrt = mock.MagicMock()
+        with mock.patch.dict(sys.modules, {"fcntl": None, "msvcrt": fake_msvcrt}):
+            module = load_module("image_project_without_fcntl", SKILL / "scripts" / "image_project.py")
+        self.assertIsNone(module.fcntl)
+        self.assertIs(module.msvcrt, fake_msvcrt)
 
     def test_plan_hash_changes_with_reference_or_brief(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -461,6 +527,7 @@ class ProjectTests(unittest.TestCase):
             mock.patch("sys.stderr", new_callable=io.StringIO), self.assertRaises(SystemExit):
             PROJECT.main()
 
+    @unittest.skipIf(os.name == "nt", "the fake codex is a shebang script, which Windows cannot execute")
     def test_detached_workers_complete_in_parallel_with_fake_codex(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
