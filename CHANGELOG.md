@@ -2,7 +2,9 @@
 
 All notable changes to this project are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] - 2026-11-09
+
+Windows joins macOS and Linux as a supported platform.
 
 ### Added
 
