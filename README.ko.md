@@ -52,7 +52,7 @@ claude plugin install codex-imagegen@codex-imagegen
 
 ## 시작하기
 
-macOS 또는 Linux, Python 3.9+, Claude Code, 로그인된 Codex CLI 0.164.0+가 필요합니다. 저장소를 클론했다면 `python3 skill/scripts/codex_status.py`로 준비 상태를 확인할 수 있습니다(모델 호출 없음).
+macOS, Linux 또는 Windows, Python 3.9+, Claude Code, 로그인된 Codex CLI 0.164.0+가 필요합니다. 저장소를 클론했다면 `python3 skill/scripts/codex_status.py`로 준비 상태를 확인할 수 있습니다(모델 호출 없음).
 
 ```bash
 # Codex가 없다면 먼저 설치하고 로그인하세요.

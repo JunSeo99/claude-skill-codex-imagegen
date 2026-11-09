@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The project follows [Se
 
 ## [Unreleased]
 
+### Added
+
+- Windows is now a supported platform alongside macOS and Linux.
+
 ### Fixed
 
 - Windows: `image_project.py` no longer fails to import for lack of `fcntl`; it falls back to `msvcrt.locking` for the worker lock.

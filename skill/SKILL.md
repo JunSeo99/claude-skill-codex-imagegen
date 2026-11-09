@@ -6,8 +6,9 @@ description: Create and refine raster image files (PNG) from Claude Code using t
 # Codex Imagegen
 
 Claude directs and reviews; Codex only generates. Use the user's Codex subscription;
-never use a separately billed image API. Requires Python 3.9+, macOS/Linux, and
-logged-in Codex CLI 0.164.0+ (`codex login`). Resolve `<SKILL_DIR>` from this file.
+never use a separately billed image API. Requires Python 3.9+, macOS/Linux/Windows, and
+logged-in Codex CLI 0.164.0+ (`codex login`). On Windows, use `python` or `py` where
+this file says `python3`. Resolve `<SKILL_DIR>` from this file.
 
 ## Route by intent
 
