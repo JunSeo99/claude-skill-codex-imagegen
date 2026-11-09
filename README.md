@@ -57,7 +57,7 @@ No mandatory interview for a clear request. No extra variations when you asked f
 
 ## Get started
 
-You need **Claude Code**, **Python 3.9+**, and **Codex CLI 0.164.0+** on macOS or Linux, with an active Codex login.
+You need **Claude Code**, **Python 3.9+**, and **Codex CLI 0.164.0+** on macOS, Linux, or Windows, with an active Codex login.
 
 ```bash
 # If Codex is not installed yet:
